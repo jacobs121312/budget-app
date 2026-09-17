@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Бюджет</title>
+<style>
+  :root {
+    --bg: #F5F5F7;
+    --card: #FFFFFF;
+    --card-alt: #F2F2F4;
+    --ink: #1D1D1F;
+    --ink-soft: #6E6E73;
+    --ink-faint: #A1A1A6;
+    --line: #E3E3E6;
+    --blue: #0071E3;
+    --blue-bg: #E8F1FE;
+    --green: #1F8A3D;
+    --green-bg: #E3F7E9;
+    --orange: #B95C00;
+    --orange-bg: #FCEEDD;
+    --red: #D70015;
+    --red-bg: #FDEBEC;
+    --shadow: rgba(0, 0, 0, 0.06);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #000000;
+      --card: #1C1C1E;
+      --card-alt: #2C2C2E;
+      --ink: #F5F5F7;
+      --ink-soft: #98989D;
+      --ink-faint: #6E6E73;
+      --line: #38383A;
+      --blue: #0A84FF;
+      --blue-bg: rgba(10, 132, 255, 0.16);
+      --green: #32D74B;
+      --green-bg: rgba(50, 215, 75, 0.15);
+      --orange: #FF9F0A;
+      --orange-bg: rgba(255, 159, 10, 0.15);
+      --red: #FF453A;
+      --red-bg: rgba(255, 69, 58, 0.15);
+      --shadow: rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #000000;
+    --card: #1C1C1E;
+    --card-alt: #2C2C2E;
+    --ink: #F5F5F7;
+    --ink-soft: #98989D;
+    --ink-faint: #6E6E73;
+    --line: #38383A;
+    --blue: #0A84FF;
+    --blue-bg: rgba(10, 132, 255, 0.16);
+    --green: #32D74B;
+    --green-bg: rgba(50, 215, 75, 0.15);
+    --orange: #FF9F0A;
+    --orange-bg: rgba(255, 159, 10, 0.15);
+    --red: #FF453A;
+    --red-bg: rgba(255, 69, 58, 0.15);
+    --shadow: rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { min-height: 100vh; padding: 40px 18px 90px; }
+
+  .page { max-width: 440px; margin: 0 auto; }
+
+  header.top { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+
+  .app-icon {
+    width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+    background: linear-gradient(155deg, #34C759 0%, #0071E3 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 16px rgba(0,113,227,0.28);
+  }
+  .app-icon svg { width: 26px; height: 26px; }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 2px;
+    color: var(--ink);
+  }
+
+  .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0; line-height: 1.4; }
+
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: 0 2px 16px var(--shadow);
+    padding: 6px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .card-inner { padding: 18px 16px 20px; }
+
+  .card-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    padding: 12px 14px 4px;
+  }
+
+  /* Segmented control */
+  .segmented {
+    display: flex;
+    background: var(--card-alt);
+    border-radius: 12px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .profile-btn {
+    flex: 1;
+    padding: 9px 8px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 590;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .profile-btn.active {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  }
+
+  .profile-btn:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+
+  /* Hero salary */
+  .hero-row { display: flex; align-items: flex-end; justify-content: space-between; padding: 18px 16px 4px; }
+  .hero-label { font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+  .hero-input {
+    border: none; background: transparent;
+    font-family: var(--font);
+    font-size: 42px; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    width: 100%;
+    padding: 0;
+  }
+  .hero-input::placeholder { color: var(--ink-faint); }
+  .hero-input:focus { outline: none; }
+  .hero-currency { font-size: 17px; color: var(--ink-faint); font-weight: 500; padding-bottom: 6px; }
+  .hero-auto-note { font-size: 12px; color: var(--blue); padding: 0 16px 14px; }
+
+  /* USD linking row */
+  .usd-row {
+    margin: 4px 6px 2px;
+    background: var(--card-alt);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .usd-row-top { display: flex; align-items: center; justify-content: space-between; }
+  .usd-row-title { font-size: 13.5px; font-weight: 590; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+
+  .ios-switch { position: relative; display: inline-block; width: 44px; height: 26px; flex-shrink: 0; }
+  .ios-switch input { opacity: 0; width: 0; height: 0; }
+  .ios-switch .track {
+    position: absolute; cursor: pointer; inset: 0;
+    background: var(--line); border-radius: 999px;
+    transition: background 0.2s ease;
+  }
+  .ios-switch .track::before {
+    content: ""; position: absolute; height: 22px; width: 22px; left: 2px; top: 2px;
+    background: white; border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 0.2s ease;
+  }
+  .ios-switch input:checked + .track { background: var(--green); }
+  .ios-switch input:checked + .track::before { transform: translateX(18px); }
+
+  .usd-fields { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .usd-field { display: flex; flex-direction: column; gap: 3px; }
+  .usd-field label { font-size: 11px; color: var(--ink-faint); }
+  .usd-field input {
+    width: 76px;
+    border: none;
+    background: var(--card);
+    border-radius: 8px;
+    padding: 7px 8px;
+    font-family: var(--font);
+    font-size: 14.5px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .usd-field input:focus { outline: none; box-shadow: 0 0 0 2px var(--blue); }
+  .usd-times { color: var(--ink-faint); font-size: 14px; padding-top: 14px; }
+  .usd-row-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .usd-check-link { font-size: 12px; color: var(--blue); text-decoration: none; font-weight: 500; }
+  .usd-updated { font-size: 11px; color: var(--ink-faint); }
+
+  /* Grouped list rows (fixed items) */
+  .list-group { margin: 8px 6px 4px; }
+  .fixed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .fixed-row:last-child { border-bottom: none; }
+
+  .fixed-row-main { flex: 1; min-width: 0; }
+  .fixed-row input[type="text"] {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: var(--font);
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink);
+    padding: 2px 0;
+  }
+  .fixed-row input[type="text"]::placeholder { color: var(--ink-faint); font-weight: 400; }
+  .usd-hint { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+  .type-toggle {
+    display: flex;
+    background: var(--card-alt);
+    border-radius: 8px;
+    padding: 2px;
+    flex-shrink: 0;
+  }
+  .type-toggle button {
+    border: none;
+    background: transparent;
+    color: var(--ink-faint);
+    font-family: var(--font);
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .type-toggle button.active { background: var(--card); color: var(--blue); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+  .fixed-row input[type="number"] {
+    width: 76px;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    font-family: var(--font);
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    padding: 2px 0;
+  }
+  .fixed-row input:focus { outline: none; }
+
+  .row-remove {
+    border: none;
+    background: none;
+    color: var(--ink-faint);
+    font-size: 19px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 0 2px 2px;
+    flex-shrink: 0;
+  }
+  .row-remove:hover { color: var(--red); }
+
+  .add-row-btn {
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    color: var(--blue);
+    font-family: var(--font);
+    font-size: 14.5px;
+    font-weight: 500;
+    padding: 12px 8px 6px;
+    cursor: pointer;
+  }
+
+  /* Split tiles */
+  .splits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 10px 6px; }
+  .split-item {
+    border-radius: 14px;
+    padding: 12px 8px 11px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+  }
+  .split-item.necessity { background: var(--blue-bg); }
+  .split-item.wants { background: var(--orange-bg); }
+  .split-item.savings { background: var(--green-bg); }
+  .split-item label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink-soft);
+    margin-bottom: 3px;
+    text-align: center;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  .split-item.necessity label { color: var(--blue); }
+  .split-item.wants label { color: var(--orange); }
+  .split-item.savings label { color: var(--green); }
+  .split-item .pct-input-wrap { display: flex; align-items: baseline; justify-content: center; gap: 1px; width: 100%; }
+  .split-item input {
+    width: 44px;
+    min-width: 44px;
+    flex: 0 0 auto;
+    border: none; background: transparent;
+    padding: 0;
+    font-family: var(--font); font-size: 22px; font-weight: 700; color: var(--ink);
+    text-align: center; font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+    -moz-appearance: textfield;
+    -webkit-text-size-adjust: 100%;
+  }
+  .split-item input::-webkit-outer-spin-button,
+  .split-item input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .split-item input:focus { outline: none; }
+  .split-item .pct-sign { color: var(--ink-faint); font-size: 13px; font-weight: 600; flex-shrink: 0; }
+
+  .split-sum-note { font-size: 12px; color: var(--ink-faint); margin: 4px 12px 10px; text-align: right; }
+  .split-sum-note.ok { color: var(--green); }
+  .split-sum-note.bad { color: var(--red); }
+
+  @media (max-width: 360px) {
+    .splits { grid-template-columns: 1fr; }
+    .split-item { flex-direction: row; justify-content: space-between; padding: 12px 14px; text-align: left; }
+    .split-item label { min-height: 0; justify-content: flex-start; margin-bottom: 0; }
+    .split-item .pct-input-wrap { width: auto; justify-content: flex-end; }
+  }
+
+  /* Results */
+  .ledger { display: none; }
+  .ledger.visible { display: block; }
+
+  .ledger-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 10px 14px; font-size: 14.5px;
+  }
+  .ledger-row .label { color: var(--ink-soft); }
+  .ledger-row .amount { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 500; }
+  .ledger-row.sub { padding: 6px 14px 6px 30px; }
+  .ledger-row.sub .label { color: var(--ink-faint); font-size: 13px; }
+  .ledger-row.sub .amount { color: var(--ink-soft); font-size: 13px; font-weight: 400; }
+  .ledger-row.negative .amount { color: var(--red); }
+
+  .ledger-row.total {
+    border-top: 1px solid var(--line);
+    margin-top: 2px;
+    padding-top: 14px;
+  }
+  .ledger-row.total .label { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+  .ledger-row.total .amount { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+
+  .category-card { border-radius: 16px; margin: 8px 6px; overflow: hidden; }
+  .category-card.necessity { background: var(--blue-bg); }
+  .category-card.wants { background: var(--orange-bg); }
+  .category-card.savings { background: var(--green-bg); }
+
+  .category-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 4px;
+  }
+  .category-head-left { display: flex; align-items: center; gap: 8px; }
+  .category-head svg { width: 18px; height: 18px; }
+  .category-head span.name { font-size: 14.5px; font-weight: 600; }
+  .category-card.necessity .name, .category-card.necessity svg { color: var(--blue); }
+  .category-card.wants .name, .category-card.wants svg { color: var(--orange); }
+  .category-card.savings .name, .category-card.savings svg { color: var(--green); }
+  .category-head .amount { font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 700; color: var(--ink); }
+
+  .category-body { padding: 0 4px 10px; }
+
+  .empty-hint { color: var(--ink-soft); font-size: 13px; padding: 4px 16px 12px; line-height: 1.4; }
+
+  .warning-box {
+    background: var(--red-bg); color: var(--red); border-radius: 10px;
+    padding: 10px 12px; font-size: 12.5px; margin: 4px 12px 10px; line-height: 1.45;
+  }
+
+  .savings-highlight { padding: 4px 16px 16px; }
+  .savings-highlight .amount-big {
+    font-size: 30px; font-weight: 700; color: var(--green); letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .savings-highlight .caption { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+
+  footer.note { text-align: center; font-size: 11.5px; color: var(--ink-faint); margin-top: 14px; }
+
+  @media (max-width: 400px) {
+    .hero-input { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <div class="app-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5 12 4l9 6.5"/>
+        <path d="M5 9.5V20h14V9.5"/>
+        <path d="M9.5 20v-6h5v6"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Бюджет</h1>
+      <p class="sub">Обов'язкові статті — першими, решта — за 50/30/20</p>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="card-inner" style="padding-bottom:6px;">
+      <div class="segmented">
+        <button class="profile-btn active" data-profile="mine" type="button">Моя зарплата</button>
+        <button class="profile-btn" data-profile="wife" type="button">Зарплата дружини</button>
+      </div>
+    </div>
+
+    <div class="hero-row">
+      <div style="flex:1;">
+        <div class="hero-label">Сума зарплати</div>
+        <input type="number" inputmode="decimal" class="hero-input" id="salaryInput" placeholder="0">
+      </div>
+      <div class="hero-currency">грн</div>
+    </div>
+    <p class="hero-auto-note" id="salaryAutoNote" style="display:none;">розраховано як $ × курс</p>
+
+    <div class="usd-row" id="usdBox">
+      <div class="usd-row-top">
+        <span class="usd-row-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Прив'язати до курсу
+        </span>
+        <label class="ios-switch">
+          <input type="checkbox" id="usdLinked">
+          <span class="track"></span>
+        </label>
+      </div>
+      <div class="usd-fields">
+        <div class="usd-field">
+          <label>Ставка, $</label>
+          <input type="number" id="usdAmount" min="0">
+        </div>
+        <span class="usd-times">×</span>
+        <div class="usd-field">
+          <label>Курс, грн/$</label>
+          <input type="number" id="usdRate" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="usd-row-foot">
+        <span class="usd-updated" id="usdUpdated"></span>
+        <a class="usd-check-link" href="https://bank.gov.ua/ua/markets/exchangerates" target="_blank" rel="noopener">курс НБУ ↗</a>
+      </div>
+    </div>
+
+    <div class="card-title">Обов'язкові статті</div>
+    <div class="list-group" id="fixedRows"></div>
+    <button class="add-row-btn" id="addRowBtn" type="button">+ Додати статтю</button>
+
+    <div class="card-title" style="margin-top:18px;">Розподіл залишку</div>
+    <div class="splits">
+      <div class="split-item necessity">
+        <label>Необхідне</label>
+        <div class="pct-input-wrap"><input type="number" id="pctNecessity" value="50" min="0" max="100"><span class="pct-sign">%</span></div>
+      </div>
+      <div class="split-item wants">
+        <label>Бажання</label>
+        <div class="pct-input-wrap"><input type="number" id="pctWants" value="30" min="0" max="100"><span class="pct-sign">%</span></div>
+      </div>
+      <div class="split-item savings">
+        <label>Накопичення</label>
+        <div class="pct-input-wrap"><input type="number" id="pctSavings" value="20" min="0" max="100"><span class="pct-sign">%</span></div>
+      </div>
+    </div>
+    <div class="split-sum-note" id="splitSumNote">Разом: 100%</div>
+  </div>
+
+  <div class="card ledger" id="resultsCard">
+    <div class="card-inner" style="padding-bottom:2px;">
+      <div class="ledger-row" style="padding-left:0; padding-right:0;">
+        <span class="label">Зарплата</span>
+        <span class="amount" id="rSalary">0 грн</span>
+      </div>
+
+      <div id="percentBreakdown"></div>
+
+      <div class="ledger-row total" style="padding-left:0; padding-right:0;">
+        <span class="label">Залишок після обов'язкових % статей</span>
+        <span class="amount" id="rAfterPercent">0 грн</span>
+      </div>
+    </div>
+
+    <div class="category-card necessity">
+      <div class="category-head">
+        <div class="category-head-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 9.5V20h14V9.5"/></svg>
+          <span class="name" id="rNecessityLabel">Необхідне (50%)</span>
+        </div>
+        <span class="amount" id="rNecessityTotal">0 грн</span>
+      </div>
+      <div class="category-body">
+        <div id="fixedBreakdown"></div>
+        <div class="ledger-row" id="rNecessityLeftRow">
+          <span class="label">На інші потреби (їжа, транспорт тощо)</span>
+          <span class="amount" id="rNecessityLeft">0 грн</span>
+        </div>
+        <div id="necessityWarning"></div>
+      </div>
+    </div>
+
+    <div class="category-card wants">
+      <div class="category-head">
+        <div class="category-head-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6V4a3 3 0 1 1 6 0v2M5 9h14l-1 11H6L5 9Z"/></svg>
+          <span class="name" id="rWantsLabel">Бажання (30%)</span>
+        </div>
+        <span class="amount" id="rWants">0 грн</span>
+      </div>
+      <p class="empty-hint">Розваги, кафе, хобі, необов'язкові покупки.</p>
+    </div>
+
+    <div class="category-card savings">
+      <div class="category-head">
+        <div class="category-head-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14c0-4 3-7 8-7s8 3 8 6-2 4-4 4H8l-4 3v-4Z"/><circle cx="15" cy="10" r=".6" fill="currentColor" stroke="none"/></svg>
+          <span class="name" id="rSavingsLabel">Накопичення (20%)</span>
+        </div>
+      </div>
+      <div class="savings-highlight">
+        <div class="amount-big" id="rSavingsBig">0 грн</div>
+        <div class="caption">Подушка безпеки, інвестиції, дострокове погашення боргів.</div>
+        <span class="amount" id="rSavings" style="display:none;"></span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">Дані зберігаються тільки у вашому браузері.</footer>
+</div>
+
+<script>
+(function () {
+  var STORAGE_KEY = 'family-budget-ledger-v2';
+
+  var defaultState = {
+    activeProfile: 'mine',
+    splits: { necessity: 50, wants: 30, savings: 20 },
+    profiles: {
+      mine: {
+        name: 'Моя зарплата',
+        salary: 26700,
+        usd: { amount: 600, rate: 44.5, linked: true, updatedAt: null },
+        fixed: [
+          { label: 'Десятина', type: 'percent', value: 10 },
+          { label: 'Оренда', type: 'usd', value: 200 },
+          { label: 'Комуналка', type: 'fixed', value: 1200 }
+        ]
+      },
+      wife: {
+        name: 'Зарплата дружини',
+        salary: 42000,
+        fixed: [
+          { label: 'Десятина', type: 'percent', value: 10 },
+          { label: 'Кредит', type: 'fixed', value: 4000 }
+        ]
+      }
+    }
+  };
+
+  var state = loadState();
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return JSON.parse(JSON.stringify(defaultState));
+      var parsed = JSON.parse(raw);
+      if (!parsed.profiles || !parsed.splits) return JSON.parse(JSON.stringify(defaultState));
+      Object.keys(defaultState.profiles).forEach(function (key) {
+        var defProfile = defaultState.profiles[key];
+        if (!parsed.profiles[key]) {
+          parsed.profiles[key] = JSON.parse(JSON.stringify(defProfile));
+          return;
+        }
+        if (defProfile.usd && !parsed.profiles[key].usd) {
+          parsed.profiles[key].usd = JSON.parse(JSON.stringify(defProfile.usd));
+        }
+        if (parsed.profiles[key].fixed === undefined) {
+          parsed.profiles[key].fixed = JSON.parse(JSON.stringify(defProfile.fixed));
+        }
+      });
+      if (!parsed._migratedRentUsd && parsed.profiles.mine && Array.isArray(parsed.profiles.mine.fixed)) {
+        parsed.profiles.mine.fixed.forEach(function (row) {
+          if (row.label === 'Оренда' && row.type === 'fixed') {
+            row.type = 'usd';
+            row.value = 200;
+          }
+        });
+        parsed._migratedRentUsd = true;
+      }
+      return parsed;
+    } catch (e) {
+      return JSON.parse(JSON.stringify(defaultState));
+    }
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { /* storage unavailable, continue without persistence */ }
+  }
+
+  function fmt(n) {
+    if (isNaN(n)) n = 0;
+    var rounded = Math.round(n);
+    var s = Math.abs(rounded).toLocaleString('uk-UA');
+    return (rounded < 0 ? '\u2212' : '') + s + ' \u0433\u0440\u043d';
+  }
+
+  var els = {
+    profileBtns: document.querySelectorAll('.profile-btn'),
+    salaryInput: document.getElementById('salaryInput'),
+    salaryAutoNote: document.getElementById('salaryAutoNote'),
+    usdBox: document.getElementById('usdBox'),
+    usdAmount: document.getElementById('usdAmount'),
+    usdRate: document.getElementById('usdRate'),
+    usdLinked: document.getElementById('usdLinked'),
+    usdUpdated: document.getElementById('usdUpdated'),
+    fixedRows: document.getElementById('fixedRows'),
+    addRowBtn: document.getElementById('addRowBtn'),
+    pctNecessity: document.getElementById('pctNecessity'),
+    pctWants: document.getElementById('pctWants'),
+    pctSavings: document.getElementById('pctSavings'),
+    splitSumNote: document.getElementById('splitSumNote'),
+    resultsCard: document.getElementById('resultsCard'),
+    rSalary: document.getElementById('rSalary'),
+    percentBreakdown: document.getElementById('percentBreakdown'),
+    rAfterPercent: document.getElementById('rAfterPercent'),
+    rNecessityLabel: document.getElementById('rNecessityLabel'),
+    rNecessityTotal: document.getElementById('rNecessityTotal'),
+    fixedBreakdown: document.getElementById('fixedBreakdown'),
+    rNecessityLeftRow: document.getElementById('rNecessityLeftRow'),
+    rNecessityLeft: document.getElementById('rNecessityLeft'),
+    necessityWarning: document.getElementById('necessityWarning'),
+    rWantsLabel: document.getElementById('rWantsLabel'),
+    rWants: document.getElementById('rWants'),
+    rSavingsLabel: document.getElementById('rSavingsLabel'),
+    rSavings: document.getElementById('rSavings'),
+    rSavingsBig: document.getElementById('rSavingsBig')
+  };
+
+  function currentProfile() { return state.profiles[state.activeProfile]; }
+
+  function renderProfileButtons() {
+    els.profileBtns.forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.profile === state.activeProfile);
+    });
+  }
+
+  function renderSalary() {
+    var p = currentProfile();
+    els.salaryInput.value = p.salary || '';
+    els.salaryInput.readOnly = !!(p.usd && p.usd.linked);
+    els.salaryAutoNote.style.display = (p.usd && p.usd.linked) ? 'block' : 'none';
+  }
+
+  function formatUpdatedAt(iso) {
+    if (!iso) return 'курс ще не оновлювався вручну';
+    try {
+      var d = new Date(iso);
+      return 'оновлено ' + d.toLocaleDateString('uk-UA');
+    } catch (e) { return ''; }
+  }
+
+  function renderUsdBox() {
+    var p = currentProfile();
+    if (!p.usd) { els.usdBox.style.display = 'none'; return; }
+    els.usdBox.style.display = 'block';
+    els.usdAmount.value = p.usd.amount;
+    els.usdRate.value = p.usd.rate;
+    els.usdLinked.checked = !!p.usd.linked;
+    els.usdUpdated.textContent = formatUpdatedAt(p.usd.updatedAt);
+  }
+
+  function applyUsdLink() {
+    var p = currentProfile();
+    if (p.usd && p.usd.linked) {
+      var computed = (Number(p.usd.amount) || 0) * (Number(p.usd.rate) || 0);
+      p.salary = Math.round(computed);
+    }
+  }
+
+  function renderSplits() {
+    els.pctNecessity.value = state.splits.necessity;
+    els.pctWants.value = state.splits.wants;
+    els.pctSavings.value = state.splits.savings;
+    var sum = Number(state.splits.necessity) + Number(state.splits.wants) + Number(state.splits.savings);
+    els.splitSumNote.textContent = 'Разом: ' + sum + '%';
+    els.splitSumNote.classList.toggle('ok', sum === 100);
+    els.splitSumNote.classList.toggle('bad', sum !== 100);
+  }
+
+  var fixedUsdHintRefs = [];
+
+  function renderFixedRows() {
+    var p = currentProfile();
+    els.fixedRows.innerHTML = '';
+    fixedUsdHintRefs = [];
+    p.fixed.forEach(function (row, idx) {
+      var wrap = document.createElement('div');
+      wrap.className = 'fixed-row';
+
+      var main = document.createElement('div');
+      main.className = 'fixed-row-main';
+
+      var labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.value = row.label;
+      labelInput.placeholder = 'Назва статті';
+      labelInput.addEventListener('input', function () {
+        row.label = labelInput.value;
+        saveState();
+        compute();
+      });
+      main.appendChild(labelInput);
+
+      var hintEl = null;
+      if (row.type === 'usd') {
+        hintEl = document.createElement('div');
+        hintEl.className = 'usd-hint';
+        main.appendChild(hintEl);
+        fixedUsdHintRefs.push({ row: row, el: hintEl });
+      }
+
+      var toggle = document.createElement('div');
+      toggle.className = 'type-toggle';
+      var btnPct = document.createElement('button');
+      btnPct.type = 'button';
+      btnPct.textContent = '%';
+      var btnAmt = document.createElement('button');
+      btnAmt.type = 'button';
+      btnAmt.textContent = 'грн';
+      var btnUsd = null;
+      if (p.usd) {
+        btnUsd = document.createElement('button');
+        btnUsd.type = 'button';
+        btnUsd.textContent = '$';
+      }
+      function refreshToggle() {
+        btnPct.classList.toggle('active', row.type === 'percent');
+        btnAmt.classList.toggle('active', row.type === 'fixed');
+        if (btnUsd) btnUsd.classList.toggle('active', row.type === 'usd');
+      }
+      refreshToggle();
+      btnPct.addEventListener('click', function () {
+        row.type = 'percent';
+        saveState();
+        renderFixedRows();
+        compute();
+      });
+      btnAmt.addEventListener('click', function () {
+        row.type = 'fixed';
+        saveState();
+        renderFixedRows();
+        compute();
+      });
+      if (btnUsd) {
+        btnUsd.addEventListener('click', function () {
+          row.type = 'usd';
+          saveState();
+          renderFixedRows();
+          compute();
+        });
+      }
+      toggle.appendChild(btnPct);
+      toggle.appendChild(btnAmt);
+      if (btnUsd) toggle.appendChild(btnUsd);
+
+      var valueInput = document.createElement('input');
+      valueInput.type = 'number';
+      valueInput.min = '0';
+      valueInput.value = row.value;
+      valueInput.addEventListener('input', function () {
+        row.value = Number(valueInput.value) || 0;
+        saveState();
+        compute();
+      });
+
+      var removeBtn = document.createElement('button');
+      removeBtn.className = 'row-remove';
+      removeBtn.type = 'button';
+      removeBtn.innerHTML = '&times;';
+      removeBtn.setAttribute('aria-label', 'Видалити статтю');
+      removeBtn.addEventListener('click', function () {
+        p.fixed.splice(idx, 1);
+        saveState();
+        renderFixedRows();
+        compute();
+      });
+
+      wrap.appendChild(main);
+      wrap.appendChild(toggle);
+      wrap.appendChild(valueInput);
+      wrap.appendChild(removeBtn);
+      els.fixedRows.appendChild(wrap);
+    });
+  }
+
+  function updateFixedUsdHints(rate) {
+    fixedUsdHintRefs.forEach(function (ref) {
+      ref.el.textContent = '= ' + fmt((Number(ref.row.value) || 0) * (Number(rate) || 0));
+    });
+  }
+
+  function resolvedAmount(row, salary, rate) {
+    if (row.type === 'percent') return salary * (Number(row.value) || 0) / 100;
+    if (row.type === 'usd') return (Number(row.value) || 0) * (Number(rate) || 0);
+    return Number(row.value) || 0;
+  }
+
+  function compute() {
+    var p = currentProfile();
+    var salary = Number(p.salary) || 0;
+    var rate = p.usd ? (Number(p.usd.rate) || 0) : 0;
+    updateFixedUsdHints(rate);
+
+    if (salary <= 0) {
+      els.resultsCard.classList.remove('visible');
+      return;
+    }
+    els.resultsCard.classList.add('visible');
+
+    var percentRows = p.fixed.filter(function (r) { return r.type === 'percent'; });
+    var fixedAmountRows = p.fixed.filter(function (r) { return r.type === 'fixed' || r.type === 'usd'; });
+
+    var totalPercentDeduction = percentRows.reduce(function (sum, r) { return sum + resolvedAmount(r, salary, rate); }, 0);
+    var afterPercent = salary - totalPercentDeduction;
+
+    var totalFixedAmount = fixedAmountRows.reduce(function (sum, r) { return sum + resolvedAmount(r, salary, rate); }, 0);
+
+    var necPct = Number(state.splits.necessity) || 0;
+    var wantsPct = Number(state.splits.wants) || 0;
+    var savPct = Number(state.splits.savings) || 0;
+
+    var necessityBudget = afterPercent * necPct / 100;
+    var wants = afterPercent * wantsPct / 100;
+    var savings = afterPercent * savPct / 100;
+    var necessityLeft = necessityBudget - totalFixedAmount;
+
+    els.rSalary.textContent = fmt(salary);
+
+    els.percentBreakdown.innerHTML = '';
+    percentRows.forEach(function (row) {
+      var r = document.createElement('div');
+      r.className = 'ledger-row negative';
+      r.style.paddingLeft = '0';
+      r.style.paddingRight = '0';
+      var lab = document.createElement('span');
+      lab.className = 'label';
+      lab.textContent = (row.label || 'Стаття') + ' (' + (Number(row.value) || 0) + '%)';
+      var amt = document.createElement('span');
+      amt.className = 'amount';
+      amt.textContent = '\u2212' + fmt(resolvedAmount(row, salary, rate)).replace('\u2212', '');
+      r.appendChild(lab);
+      r.appendChild(amt);
+      els.percentBreakdown.appendChild(r);
+    });
+
+    els.rAfterPercent.textContent = fmt(afterPercent);
+
+    els.rNecessityLabel.textContent = 'Необхідне (' + necPct + '%)';
+    els.rNecessityTotal.textContent = fmt(necessityBudget);
+
+    els.fixedBreakdown.innerHTML = '';
+    fixedAmountRows.forEach(function (row) {
+      var r = document.createElement('div');
+      r.className = 'ledger-row sub';
+      var lab = document.createElement('span');
+      lab.className = 'label';
+      lab.textContent = (row.label || 'Стаття') + (row.type === 'usd' ? ' ($' + (Number(row.value) || 0) + ')' : '');
+      var amt = document.createElement('span');
+      amt.className = 'amount';
+      amt.textContent = fmt(resolvedAmount(row, salary, rate));
+      r.appendChild(lab);
+      r.appendChild(amt);
+      els.fixedBreakdown.appendChild(r);
+    });
+
+    els.rNecessityLeft.textContent = fmt(necessityLeft);
+    els.rNecessityLeftRow.classList.toggle('negative', necessityLeft < 0);
+
+    if (necessityLeft < 0) {
+      els.necessityWarning.innerHTML = '<div class="warning-box">Обов\u2019язкові статті перевищують виділені ' + necPct + '% на необхідне. Або зменшіть відсоток на «Бажання»/«Накопичення», або перегляньте статті.</div>';
+    } else {
+      els.necessityWarning.innerHTML = '';
+    }
+
+    els.rWantsLabel.textContent = 'Бажання (' + wantsPct + '%)';
+    els.rWants.textContent = fmt(wants);
+
+    els.rSavingsLabel.textContent = 'Накопичення (' + savPct + '%)';
+    els.rSavings.textContent = fmt(savings);
+    els.rSavingsBig.textContent = fmt(savings);
+  }
+
+  function switchProfile(key) {
+    state.activeProfile = key;
+    saveState();
+    renderProfileButtons();
+    renderUsdBox();
+    renderSalary();
+    renderFixedRows();
+    compute();
+  }
+
+  els.profileBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () { switchProfile(btn.dataset.profile); });
+  });
+
+  els.salaryInput.addEventListener('input', function () {
+    if (els.salaryInput.readOnly) return;
+    currentProfile().salary = Number(els.salaryInput.value) || 0;
+    saveState();
+    compute();
+  });
+
+  els.usdAmount.addEventListener('input', function () {
+    var p = currentProfile();
+    if (!p.usd) return;
+    p.usd.amount = Number(els.usdAmount.value) || 0;
+    applyUsdLink();
+    saveState();
+    renderSalary();
+    compute();
+  });
+
+  els.usdRate.addEventListener('input', function () {
+    var p = currentProfile();
+    if (!p.usd) return;
+    p.usd.rate = Number(els.usdRate.value) || 0;
+    p.usd.updatedAt = new Date().toISOString();
+    applyUsdLink();
+    saveState();
+    renderSalary();
+    renderUsdBox();
+    compute();
+  });
+
+  els.usdLinked.addEventListener('change', function () {
+    var p = currentProfile();
+    if (!p.usd) return;
+    p.usd.linked = els.usdLinked.checked;
+    applyUsdLink();
+    saveState();
+    renderSalary();
+    compute();
+  });
+
+  els.addRowBtn.addEventListener('click', function () {
+    currentProfile().fixed.push({ label: '', type: 'fixed', value: 0 });
+    saveState();
+    renderFixedRows();
+    compute();
+  });
+
+  [['pctNecessity', 'necessity'], ['pctWants', 'wants'], ['pctSavings', 'savings']].forEach(function (pair) {
+    els[pair[0]].addEventListener('input', function () {
+      state.splits[pair[1]] = Number(els[pair[0]].value) || 0;
+      saveState();
+      renderSplits();
+      compute();
+    });
+  });
+
+  applyUsdLink();
+  renderProfileButtons();
+  renderUsdBox();
+  renderSalary();
+  renderFixedRows();
+  renderSplits();
+  compute();
+})();
+</script>
+</body>
+</html>
