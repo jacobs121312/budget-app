@@ -657,6 +657,16 @@
         save(); refresh();
       });
       gm.appendChild(gb);
+      gm.appendChild(el('span', '', '· готівкою $'));
+      var gc = el('input', 'goal-amount');
+      gc.type = 'number'; gc.inputMode = 'decimal'; gc.min = '0'; gc.step = 'any'; gc.placeholder = '0';
+      gc.value = item.cashUsd || ''; gc.setAttribute('aria-label', 'Доларів готівкою на цю ціль');
+      gc.addEventListener('input', function () {
+        var v = Math.round(num(gc.value) * 100) / 100;
+        if (v > 0) item.cashUsd = v; else delete item.cashUsd;
+        save(); refresh();
+      });
+      gm.appendChild(gc);
       main.appendChild(gm);
       goalEl = el('div', 'debt-payoff');
       main.appendChild(goalEl);
@@ -864,26 +874,30 @@
   // Same rules as the agent (budget.js → goalProgress): change both together.
   function goalProgress(e, c) {
     var spent = spentBy()[e.id] || 0;
-    var saved = Math.round(num(e.balance) + spent);
+    var cashUah = Math.round(num(e.cashUsd) * num(state.rate));
+    var inJar = Math.round(num(e.balance) + spent);
+    var saved = inJar + cashUah;
     var plan = Math.round(c.plan[e.id] || 0);
-    if (!e.goal || !(num(e.goal.amount) > 0)) return { hasTarget: false, saved: saved, plan: plan };
+    var cash = e.cashUsd ? { usd: num(e.cashUsd), uah: cashUah, inJar: inJar } : null;
+    if (!e.goal || !(num(e.goal.amount) > 0)) return { hasTarget: false, saved: saved, plan: plan, cash: cash };
     var amount = Math.round(num(e.goal.amount));
     var left = Math.max(0, amount - saved);
     var monthsLeft = e.goal.date ? Math.max(0, monthsBetween(state.month, e.goal.date) + 1) : null;
-    var neededPerMonth = monthsLeft ? Math.max(0, Math.ceil((amount - num(e.balance)) / monthsLeft)) : null;
+    var neededPerMonth = monthsLeft ? Math.max(0, Math.ceil((amount - num(e.balance) - cashUah) / monthsLeft)) : null;
     var afterThis = left - Math.max(0, plan - spent);
     var byPlan = left <= 0 || afterThis <= 0 ? state.month : plan > 0 ? addMonths(state.month, Math.ceil(afterThis / plan)) : null;
     var onTrack = left <= 0 || (e.goal.date ? byPlan !== null && byPlan <= e.goal.date : true);
-    return { hasTarget: true, amount: amount, saved: saved, left: left, plan: plan, date: e.goal.date || null, neededPerMonth: neededPerMonth, byPlan: byPlan, onTrack: onTrack, done: left <= 0 };
+    return { hasTarget: true, amount: amount, saved: saved, left: left, plan: plan, date: e.goal.date || null, neededPerMonth: neededPerMonth, byPlan: byPlan, onTrack: onTrack, done: left <= 0, cash: cash };
   }
 
   var MONTHS_GEN = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
   function untilMonth(key) { var p = key.split('-'); return MONTHS_GEN[Number(p[1]) - 1] + ' ' + p[0]; }
 
   function goalText(g) {
-    if (!g.hasTarget) return g.saved ? 'накопичено ' + fmt(g.saved) : '';
+    var cash = g.cash ? ' (з них $' + g.cash.usd + ' готівкою ≈ ' + fmt(g.cash.uah) + ')' : '';
+    if (!g.hasTarget) return g.saved ? 'накопичено ' + fmt(g.saved) + cash : '';
     var pct = Math.min(100, Math.round(g.saved / g.amount * 100));
-    var head = 'накопичено ' + fmt(g.saved) + ' з ' + fmt(g.amount) + ' (' + pct + '%)';
+    var head = 'накопичено ' + fmt(g.saved) + ' з ' + fmt(g.amount) + ' (' + pct + '%)' + cash;
     if (g.done) return head + ' · ✓ зібрано';
     if (!g.date) return head + (g.byPlan ? ' · за планом — ' + monthLabel(g.byPlan).toLowerCase() : '');
     if (g.onTrack) return head + ' · встигаєте до ' + untilMonth(g.date);
