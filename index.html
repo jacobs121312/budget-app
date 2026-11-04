@@ -205,6 +205,8 @@
   .hist-sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
 
   footer.note { text-align: center; font-size: 11.5px; color: var(--ink-faint); margin-top: 14px; line-height: 1.6; }
+  #syncStatus { color: var(--green); }
+  #syncStatus.bad { color: var(--red); }
   footer.note button { border: none; background: none; color: var(--blue); font-size: 12px; font-weight: 500; cursor: pointer; padding: 4px 6px; }
   .hidden { display: none !important; }
 
@@ -314,8 +316,8 @@
   </section>
 
   <footer class="note">
-    Дані зберігаються тільки в цьому браузері.<br>
-    <button type="button" id="exportBtn">Експорт</button>·<button type="button" id="importBtn">Імпорт</button>
+    <span id="storageNote">Дані зберігаються тільки в цьому браузері.</span> <span id="syncStatus"></span><br>
+    <button type="button" id="syncBtn">Підключити агента</button>·<button type="button" id="exportBtn">Експорт</button>·<button type="button" id="importBtn">Імпорт</button>
     <input type="file" id="importFile" accept="application/json,.json" class="hidden">
   </footer>
 </div>
@@ -474,7 +476,78 @@
   }
 
   var state = load();
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
+  function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
+  function save() { saveLocal(); if (sync) schedulePush(); }
+
+  // ---------- sync with the budget agent (optional) ----------
+  // When connected, the agent's copy is the source of truth: plan edits are pushed,
+  // and month records (expenses, closing a month) go through its API.
+  var SYNC_KEY = 'family-budget-agent';
+  var sync = null;
+  try { sync = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); } catch (e) { sync = null; }
+  var pushTimer = null;
+
+  function setSyncStatus(text, bad) {
+    var s = document.getElementById('syncStatus');
+    if (!s) return;
+    s.textContent = text || '';
+    s.classList.toggle('bad', !!bad);
+  }
+  function renderSyncFooter() {
+    document.getElementById('storageNote').textContent = sync ? 'Дані синхронізуються з агентом у Telegram.' : 'Дані зберігаються тільки в цьому браузері.';
+    document.getElementById('syncBtn').textContent = sync ? 'Відключити агента' : 'Підключити агента';
+    if (!sync) setSyncStatus('');
+  }
+  function api(method, path, body) {
+    return fetch(sync.url + path, {
+      method: method,
+      headers: { authorization: 'Bearer ' + sync.token, 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+  function planOf(s) { return { rate: s.rate, people: s.people, incomes: s.incomes, firsts: s.firsts, envelopes: s.envelopes }; }
+  function syncFailed() { setSyncStatus('немає зв’язку з агентом', true); }
+  function syncOk() { setSyncStatus('✓ синхронізовано'); }
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(function () { pushTimer = null; pushPlan(); }, 700); }
+  function pushPlan() {
+    return api('PUT', '/api/plan', { plan: planOf(state) }).then(function (r) {
+      // Take the month records from the agent (card spends may have arrived); keep local plan edits.
+      if (r.state) { state.expenses = r.state.expenses; state.history = r.state.history; state.month = r.state.month; saveLocal(); refresh(); }
+      syncOk();
+    }).catch(syncFailed);
+  }
+  function flushPush() {
+    if (!pushTimer) return Promise.resolve();
+    clearTimeout(pushTimer); pushTimer = null;
+    return pushPlan();
+  }
+  function applyServer(s) {
+    var tab = state.tab;
+    state = s; state.tab = tab;
+    saveLocal(); renderAll();
+  }
+  function pull() {
+    if (!sync) return Promise.resolve();
+    setSyncStatus('синхронізація…');
+    return flushPush().then(function () { return api('GET', '/api/state'); }).then(function (r) {
+      if (!r.state || !r.state.envelopes || !r.state.envelopes.length) {
+        // First connection: the agent has no plan yet, give it everything from this browser.
+        return api('PUT', '/api/plan', { state: state }).then(function (r2) { applyServer(r2.state); });
+      }
+      applyServer(r.state);
+    }).then(syncOk).catch(syncFailed);
+  }
+  function mutate(method, path, body) {
+    return flushPush().then(function () { return api(method, path, body); }).then(function (r) {
+      applyServer(r.state); syncOk();
+    }).catch(function () {
+      syncFailed();
+      alert('Не вдалося зберегти: немає зв’язку з агентом. Спробуйте ще раз.');
+    });
+  }
 
   // ---------- calculation ----------
   function amountOf(item, base) {
@@ -587,6 +660,7 @@
     rm.addEventListener('click', function () {
       if (list === state.envelopes && state.expenses.some(function (x) { return x.env === item.id; })) {
         if (!confirm('У цій статті вже є витрати цього місяця. Видалити разом з ними?')) return;
+        if (sync) state.expenses.forEach(function (x) { if (x.env === item.id) api('DELETE', '/api/expenses/' + encodeURIComponent(x.id)).catch(syncFailed); });
         state.expenses = state.expenses.filter(function (x) { return x.env !== item.id; });
       }
       list.splice(list.indexOf(item), 1);
@@ -766,6 +840,7 @@
   }
 
   function addExpense(envId, amount, note, who) {
+    if (sync) return mutate('POST', '/api/expenses', { env: envId, amount: Math.round(amount * 100) / 100, note: note || '', who: who || '' });
     state.expenses.push({ id: uid(), env: envId, amount: Math.round(amount * 100) / 100, note: note || '', who: who || '', date: new Date().toISOString() });
     save(); refresh();
   }
@@ -886,13 +961,14 @@
       var main = el('div', 'exp-main');
       main.appendChild(el('div', 'exp-cat', env ? (env.name || 'Без назви') : 'Видалена стаття'));
       var d = new Date(x.date);
-      var meta = d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }) + (x.who ? ' · ' + x.who : '') + (x.note ? ' · ' + x.note : '');
+      var meta = (x.source === 'mono' ? '💳 ' : '') + d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }) + (x.who ? ' · ' + x.who : '') + (x.note ? ' · ' + x.note : '');
       main.appendChild(el('div', 'exp-note', meta));
       row.appendChild(main);
       row.appendChild(el('span', 'exp-amt', fmt(x.amount)));
       var rm = el('button', 'icon-btn', '×');
       rm.type = 'button'; rm.setAttribute('aria-label', 'Видалити запис');
       rm.addEventListener('click', function () {
+        if (sync) { mutate('DELETE', '/api/expenses/' + encodeURIComponent(x.id)); return; }
         state.expenses = state.expenses.filter(function (y) { return y.id !== x.id; });
         save(); refresh();
       });
@@ -919,6 +995,7 @@
 
   function closeMonth() {
     if (!confirm('Закрити ' + monthLabel(state.month) + '? Підсумок збережеться в історії, а список витрат очиститься.')) return;
+    if (sync) { mutate('POST', '/api/close-month'); return; }
     var c = calc(), spent = spentBy();
     var plan = 0, total = 0, saved = 0, over = [];
     state.envelopes.forEach(function (e) {
@@ -1007,8 +1084,35 @@
     reader.readAsText(f);
   });
 
+  document.getElementById('syncBtn').addEventListener('click', function () {
+    if (sync) {
+      if (!confirm('Відключити агента? Поточні дані лишаться в цьому браузері.')) return;
+      sync = null;
+      try { localStorage.removeItem(SYNC_KEY); } catch (e) { /* ignore */ }
+      renderSyncFooter();
+      return;
+    }
+    var url = (prompt('Адреса агента, наприклад https://budget-agent.ваше-імʼя.workers.dev') || '').trim().replace(/\/+$/, '');
+    if (!url) return;
+    if (!/^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url)) { alert('Адреса має починатися з https://'); return; }
+    var token = (prompt('Токен доступу (WEB_TOKEN з налаштувань агента)') || '').trim();
+    if (!token) return;
+    sync = { url: url, token: token };
+    api('GET', '/api/state').then(function () {
+      try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch (e) { /* ignore */ }
+      renderSyncFooter();
+      return pull();
+    }).catch(function () {
+      sync = null;
+      alert('Не вдалося підключитися: перевірте адресу й токен.');
+    });
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && sync) pull(); });
+
   renderAll();
   setTab(state.tab === 'track' ? 'track' : 'plan');
+  renderSyncFooter();
+  if (sync) pull();
 })();
 </script>
 </body>
