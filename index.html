@@ -88,6 +88,9 @@
   .group-debts .row > input[type="number"] { width: 76px; }
   .debt-payoff { font-size: 12px; color: var(--ink-faint); margin-top: 4px; }
   .debt-payoff.done { color: var(--green); font-weight: 600; }
+  .debt-payoff.behind { color: var(--orange); font-weight: 600; }
+  .row .debt-meta .goal-amount { width: 80px; }
+  .row .debt-meta .goal-date { width: 128px; text-align: left; font-family: var(--font); }
   .debt-summary { margin: 2px 12px 12px; padding: 10px 12px; background: var(--red-bg); border-radius: 12px; font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
   .debt-summary:empty { display: none; }
   .debt-free { color: var(--green); font-weight: 600; }
@@ -621,7 +624,44 @@
       payoffEl = el('div', 'debt-payoff');
       main.appendChild(payoffEl);
     }
-    hintRefs.push({ item: item, el: hint, base: baseKind, payoff: payoffEl });
+    var goalEl = null;
+    if (list === state.envelopes && item.group === 'goals') {
+      var gm = el('div', 'debt-meta');
+      gm.appendChild(el('span', '', 'ціль'));
+      var ga = el('input', 'goal-amount');
+      ga.type = 'number'; ga.inputMode = 'decimal'; ga.min = '0'; ga.step = 'any'; ga.placeholder = '—';
+      ga.value = item.goal && item.goal.amount ? item.goal.amount : ''; ga.setAttribute('aria-label', 'Сума цілі');
+      ga.addEventListener('input', function () {
+        var v = Math.round(num(ga.value));
+        if (v > 0) { item.goal = item.goal || {}; item.goal.amount = v; } else if (item.goal) { delete item.goal.amount; if (!item.goal.date) delete item.goal; }
+        save(); refresh();
+      });
+      gm.appendChild(ga);
+      gm.appendChild(el('span', '', 'до'));
+      var gd = el('input', 'goal-date');
+      gd.type = 'month'; gd.value = item.goal && item.goal.date ? item.goal.date : ''; gd.setAttribute('aria-label', 'До якого місяця');
+      gd.addEventListener('input', function () {
+        item.goal = item.goal || {};
+        item.goal.date = /^\d{4}-\d{2}$/.test(gd.value) ? gd.value : null;
+        save(); refresh();
+      });
+      gm.appendChild(gd);
+      gm.appendChild(el('span', '', '· є'));
+      var gb = el('input', 'goal-amount');
+      gb.type = 'number'; gb.inputMode = 'decimal'; gb.min = '0'; gb.step = 'any';
+      gb.value = Math.round(num(item.balance) + (spentBy()[item.id] || 0)) || ''; gb.placeholder = '0';
+      gb.setAttribute('aria-label', 'Скільки вже накопичено');
+      gb.addEventListener('input', function () {
+        // What is typed is the total in the jar now; this month's top-ups are already counted separately.
+        item.balance = Math.max(0, Math.round(num(gb.value)) - Math.round(spentBy()[item.id] || 0));
+        save(); refresh();
+      });
+      gm.appendChild(gb);
+      main.appendChild(gm);
+      goalEl = el('div', 'debt-payoff');
+      main.appendChild(goalEl);
+    }
+    hintRefs.push({ item: item, el: hint, base: baseKind, payoff: payoffEl, goal: goalEl });
     row.appendChild(main);
 
     types.forEach(function (t) {
@@ -734,6 +774,12 @@
         r.payoff.textContent = po.text;
         r.payoff.classList.toggle('done', po.done);
       }
+      if (r.goal) {
+        var gp = goalProgress(it, c);
+        r.goal.textContent = goalText(gp);
+        r.goal.classList.toggle('done', !!gp.done);
+        r.goal.classList.toggle('behind', gp.hasTarget && !gp.onTrack);
+      }
     });
     var ds = document.getElementById('debtSummary');
     if (ds) {
@@ -808,6 +854,40 @@
     var n = Math.ceil(left / pay - 0.0001);
     var last = addMonths(state.month, n - 1);
     return { text: 'останній платіж: ' + monthLabel(last) + ' · ще ' + n + ' плат.', done: false, last: last };
+  }
+
+  function monthsBetween(from, to) {
+    var a = from.split('-').map(Number), b = to.split('-').map(Number);
+    return (b[0] - a[0]) * 12 + (b[1] - a[1]);
+  }
+
+  // Same rules as the agent (budget.js → goalProgress): change both together.
+  function goalProgress(e, c) {
+    var spent = spentBy()[e.id] || 0;
+    var saved = Math.round(num(e.balance) + spent);
+    var plan = Math.round(c.plan[e.id] || 0);
+    if (!e.goal || !(num(e.goal.amount) > 0)) return { hasTarget: false, saved: saved, plan: plan };
+    var amount = Math.round(num(e.goal.amount));
+    var left = Math.max(0, amount - saved);
+    var monthsLeft = e.goal.date ? Math.max(0, monthsBetween(state.month, e.goal.date) + 1) : null;
+    var neededPerMonth = monthsLeft ? Math.max(0, Math.ceil((amount - num(e.balance)) / monthsLeft)) : null;
+    var afterThis = left - Math.max(0, plan - spent);
+    var byPlan = left <= 0 || afterThis <= 0 ? state.month : plan > 0 ? addMonths(state.month, Math.ceil(afterThis / plan)) : null;
+    var onTrack = left <= 0 || (e.goal.date ? byPlan !== null && byPlan <= e.goal.date : true);
+    return { hasTarget: true, amount: amount, saved: saved, left: left, plan: plan, date: e.goal.date || null, neededPerMonth: neededPerMonth, byPlan: byPlan, onTrack: onTrack, done: left <= 0 };
+  }
+
+  var MONTHS_GEN = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+  function untilMonth(key) { var p = key.split('-'); return MONTHS_GEN[Number(p[1]) - 1] + ' ' + p[0]; }
+
+  function goalText(g) {
+    if (!g.hasTarget) return g.saved ? 'накопичено ' + fmt(g.saved) : '';
+    var pct = Math.min(100, Math.round(g.saved / g.amount * 100));
+    var head = 'накопичено ' + fmt(g.saved) + ' з ' + fmt(g.amount) + ' (' + pct + '%)';
+    if (g.done) return head + ' · ✓ зібрано';
+    if (!g.date) return head + (g.byPlan ? ' · за планом — ' + monthLabel(g.byPlan).toLowerCase() : '');
+    if (g.onTrack) return head + ' · встигаєте до ' + untilMonth(g.date);
+    return head + ' · щоб встигнути, треба ' + fmt(g.neededPerMonth) + '/міс';
   }
 
   // ---------- tracking ----------
@@ -914,6 +994,10 @@
         box.appendChild(prog);
         var sub = el('div', 'env-sub');
         var subText = isGoal ? (s >= p && p > 0 ? 'відкладено' : 'відкладено ' + fmt(s)) : 'витрачено ' + fmt(s) + ' з ' + fmt(p);
+        if (isGoal) {
+          var gpr = goalProgress(e, c);
+          if (gpr.hasTarget) subText = goalText(gpr);
+        }
         var dueEl = null;
         if (e.debt) {
           subText = 'борг після оплати: ' + fmt(Math.max(0, num(e.debt.left) - s));
@@ -1009,6 +1093,7 @@
     if (state.history.length > 24) state.history = state.history.slice(-24);
     state.envelopes.forEach(function (e) {
       if (e.debt && spent[e.id]) e.debt.left = round2(Math.max(0, num(e.debt.left) - spent[e.id]));
+      if (e.group === 'goals' && spent[e.id]) e.balance = Math.round(num(e.balance) + spent[e.id]);
     });
     state.expenses = [];
     var cur = monthKey();
