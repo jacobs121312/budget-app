@@ -223,18 +223,69 @@
   .jar-line.on-card .jar-line-amt { color: var(--ink-soft); font-weight: 600; }
   .jar-go { flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: #fff; background: var(--green); border-radius: 9px; padding: 7px 10px; text-decoration: none; white-space: nowrap; }
   .jar-go:active { opacity: 0.85; }
+  .all-jars .env-sub > span:first-child { flex: 1; min-width: 0; }
+  .all-jars .env-sub .link-btn { white-space: nowrap; flex-shrink: 0; }
 
-  /* desktop: wider page, cards flow in two columns */
-  @media (min-width: 960px) {
-    body { padding: 40px 32px 120px; }
-    .page { max-width: 1120px; }
-    .left-bar-inner { max-width: 1120px; }
-    header.top, .segmented { max-width: 560px; }
-    #planView, #trackView { column-count: 2; column-gap: 16px; }
-    #planView .card, #trackView .card, #trackView #monthBanner > * { break-inside: avoid; }
-    #trackView #monthBanner { column-span: all; }
+  /* ---- layout: one column on phones; side column + main area on wide screens ---- */
+  .view { display: flex; flex-direction: column; }
+  .view.hidden { display: none !important; }
+  .view > .side, .view > .main { display: contents; }
+  #planView .checks-card { order: 3; }
+  #jarsView .all-jars { order: 3; }
+  .left-card { display: none; }
+  .left-card { padding: 16px 18px; }
+  .left-card-label { font-size: 13px; color: var(--ink-soft); }
+  .left-card-amount { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 2px 0; }
+  .left-card-hint { font-size: 12.5px; color: var(--ink-faint); }
+  .left-card.ok .left-card-amount { color: var(--green); }
+  .left-card.warn .left-card-amount { color: var(--orange); }
+  .left-card.bad .left-card-amount { color: var(--red); }
+  .left-card .bar-action { margin-top: 10px; }
+
+  @media (min-width: 700px) and (max-width: 1099px) {
+    .page { max-width: 640px; }
+    .left-bar-inner { max-width: 640px; }
+  }
+
+  @media (min-width: 1100px) {
+    body { padding: 0 32px 48px; }
+    .page { max-width: 1280px; }
+    .topbar {
+      position: sticky; top: 0; z-index: 15;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+      margin: 0 -32px 24px; padding: 14px 32px;
+      background: var(--bar-bg); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--line);
+    }
+    header.top { margin: 0; }
+    .app-icon { width: 40px; height: 40px; border-radius: 11px; }
+    .app-icon svg { width: 21px; height: 21px; }
+    h1 { font-size: 20px; }
+    .sub { font-size: 12.5px; }
+    .segmented { width: 420px; margin: 0; flex-shrink: 0; }
+
+    .view { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 20px; align-items: start; }
+    .view > .side, .view > .main { display: block; min-width: 0; }
+    .view > .side.sticky { position: sticky; top: 96px; }
+    #trackView #monthBanner { grid-column: 1 / -1; }
+    #trackView #monthBanner:empty { display: none; }
+    .card { margin-bottom: 16px; }
+
+    /* plan: envelope groups in two columns next to the summary */
+    #groupCards { column-count: 2; column-gap: 16px; }
+    #groupCards .card { break-inside: avoid; }
+    .left-card { display: block; }
+    .left-bar { display: none !important; }
+
+    /* spending: envelope progress in two columns */
+    #trackGroups { column-count: 2; column-gap: 16px; }
+    #trackGroups .card { break-inside: avoid; }
+
+    /* jars: the two salaries side by side */
     .jars-persons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-    .jars-persons .card { margin-bottom: 14px; }
+    .jars-persons .card { margin-bottom: 0; }
+
+    footer.note { margin-top: 24px; }
   }
 
   @media (max-width: 380px) {
@@ -247,6 +298,7 @@
 <body>
 <div class="page">
 
+  <div class="topbar">
   <header class="top">
     <div class="app-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 4l9 6.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
@@ -262,9 +314,11 @@
     <button class="seg-btn" data-tab="track" type="button">Витрати</button>
     <button class="seg-btn" data-tab="jars" type="button">Банки</button>
   </div>
+  </div>
 
   <!-- ================= PLAN ================= -->
-  <section id="planView">
+  <section id="planView" class="view">
+    <div class="side">
     <div class="card">
       <div class="card-head"><span class="card-title"><span class="step">1</span>Доходи сім'ї</span></div>
       <div class="card-hint">Усі доходи йдуть у спільний бюджет.</div>
@@ -286,9 +340,13 @@
       <div class="sum-row small"><span class="label">До розподілу</span><span class="amount" id="availTotal">0 грн</span></div>
     </div>
 
-    <div id="groupCards"></div>
-
-    <div class="card">
+      <div class="card left-card" id="leftCard">
+        <div class="left-card-label" id="leftCardLabel">Нерозподілено</div>
+        <div class="left-card-amount" id="leftCardAmount">0 грн</div>
+        <div class="left-card-hint" id="leftCardHint"></div>
+        <button class="bar-action hidden" id="leftCardToSavings" type="button">У накопичення</button>
+      </div>
+    <div class="card checks-card">
       <div class="card-head"><span class="card-title">Перевірка за 50/30/20</span></div>
       <div class="card-hint">Частка від суми «до розподілу». Орієнтир, не правило.</div>
       <div class="checks">
@@ -297,12 +355,16 @@
         <div class="check savings"><div class="t">Накопичення</div><div class="v" id="chkSav">0%</div><div class="g" id="chkSavG">ціль ≥ 20%</div></div>
       </div>
     </div>
+    </div>
+    <div class="main">
+      <div id="groupCards"></div>
+    </div>
   </section>
 
   <!-- ================= TRACK ================= -->
-  <section id="trackView" class="hidden">
+  <section id="trackView" class="view hidden">
     <div id="monthBanner"></div>
-
+    <div class="side sticky">
     <div class="card">
       <div class="month-summary">
         <div class="month-name" id="mName"></div>
@@ -329,6 +391,8 @@
       </form>
     </div>
 
+    </div>
+    <div class="main">
     <div id="trackGroups"></div>
 
     <div class="card">
@@ -341,19 +405,24 @@
       <div id="histList"></div>
       <div style="padding:6px 8px 8px;"><button class="secondary-btn" id="closeMonth" type="button">Закрити місяць і почати новий</button></div>
     </div>
+    </div>
   </section>
 
   <!-- ================= JARS ================= -->
-  <section id="jarsView" class="hidden">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Банки й суми</span></div>
-      <div class="card-hint">Зарплати кінця місяця — це бюджет наступного. У день зарплати кожен розкладає свою частину: у банки — кнопкою «Поповнити», решта лишається на картці. Агент у Telegram нагадає те саме.</div>
+  <section id="jarsView" class="view hidden">
+    <div class="side sticky">
+      <div class="card">
+        <div class="card-head"><span class="card-title">Банки й суми</span></div>
+        <div class="card-hint">Зарплати кінця місяця — це бюджет наступного. У день зарплати кожен розкладає свою частину: у банки — кнопкою «Поповнити», решта лишається на картці. Агент у Telegram нагадає те саме.</div>
+      </div>
+      <div class="card all-jars">
+        <div class="card-head"><span class="card-title">Усі банки</span></div>
+        <div class="card-hint">Скільки на місяць іде в кожну банку і хто кладе.</div>
+        <div id="jarsList"></div>
+      </div>
     </div>
-    <div class="jars-persons" id="jarsPersons"></div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">Усі банки</span></div>
-      <div class="card-hint">Скільки на місяць іде в кожну банку і хто кладе.</div>
-      <div id="jarsList"></div>
+    <div class="main">
+      <div class="jars-persons" id="jarsPersons"></div>
     </div>
   </section>
 
@@ -915,6 +984,13 @@
       hint.textContent = c.restEnv ? 'Залишок → «' + (c.restEnv.name || 'решта') + '»' : 'Кожна гривня має призначення';
       amt.textContent = '0 грн';
     }
+    // Wide screens show the same status as a card in the side column instead of the bottom bar.
+    var lc = document.getElementById('leftCard');
+    lc.className = 'card left-card ' + (u < 0 ? 'bad' : u > 0 ? 'warn' : 'ok');
+    document.getElementById('leftCardLabel').textContent = label.textContent;
+    document.getElementById('leftCardAmount').textContent = amt.textContent;
+    document.getElementById('leftCardHint').textContent = hint.textContent;
+    document.getElementById('leftCardToSavings').classList.toggle('hidden', !(u > 0));
     renderTrack(c);
     renderJars(c);
   }
@@ -1335,6 +1411,7 @@
   document.getElementById('rateInput').addEventListener('input', function (e) { state.rate = num(e.target.value); save(); refresh(); });
   document.getElementById('addIncome').addEventListener('click', function () { state.incomes.push({ id: uid(), name: '', type: 'uah', value: 0 }); save(); renderAll(); });
   document.getElementById('addFirst').addEventListener('click', function () { state.firsts.push({ id: uid(), name: '', type: 'percent', value: 0 }); save(); renderAll(); });
+  document.getElementById('leftCardToSavings').addEventListener('click', function () { document.getElementById('leftToSavings').click(); });
   document.getElementById('leftToSavings').addEventListener('click', function () {
     var c = calc();
     var goal = state.envelopes.filter(function (e) { return e.group === 'goals'; })[0];
