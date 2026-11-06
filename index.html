@@ -342,8 +342,12 @@
 (function () {
   var KEY = 'family-budget-v3';
   var OLD_KEY = 'family-budget-ledger-v2';
-  var JAR_FOOD = 'https://send.monobank.ua/jar/6PRgxfTfAk';
-  var JAR_SAVE = 'https://send.monobank.ua/jar/4vfx32aLxD';
+  var JAR_PAYMENTS = 'https://send.monobank.ua/jar/6qwZnfpwXd';   // «Платежі місяця»
+  var JAR_IRREGULAR = 'https://send.monobank.ua/jar/4RvPNkBMQg';  // «Нерегулярні витрати»
+  var JAR_CUSHION = 'https://send.monobank.ua/jar/4UqLgrh6Ec';    // «Подушка безпеки»
+  var JAR_BIG = 'https://send.monobank.ua/jar/4TE4Xidz24';        // «Вел. пок./ відпустка»
+  // Jars that were closed: links saved in a browser before are replaced or dropped on load.
+  var OLD_JARS = { '6PRgxfTfAk': null, '4vfx32aLxD': JAR_CUSHION };
   var MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 
   var GROUPS = [
@@ -371,6 +375,26 @@
     return e;
   }
 
+  // The family's jars, by envelope: payments and installments → «Платежі місяця», clothes and
+  // gifts → «Нерегулярні витрати», cushion and vacation → their own jars.
+  function withDefaultJar(e) {
+    if (e.group === 'fixed' || e.group === 'debts') e.jar = JAR_PAYMENTS;
+    else if (e.name === 'Одяг і взуття' || e.name === 'Подарунки та непередбачене') e.jar = JAR_IRREGULAR;
+    else if (e.name === 'Подушка безпеки') e.jar = JAR_CUSHION;
+    else if (e.name === 'Відпустка / великі покупки') e.jar = JAR_BIG;
+    return e;
+  }
+
+  function replaceOldJars(s) {
+    s.envelopes.forEach(function (e) {
+      var id = e.jar ? e.jar.split('/').pop() : null;
+      if (id && Object.prototype.hasOwnProperty.call(OLD_JARS, id)) {
+        if (OLD_JARS[id]) e.jar = OLD_JARS[id]; else delete e.jar;
+      }
+    });
+    return s;
+  }
+
   function defaultState() {
     return {
       v: 3, tab: 'plan', rate: 44.5,
@@ -385,16 +409,16 @@
         { id: uid(), group: 'fixed', name: 'Комуналка', type: 'uah', value: 1200 },
         { id: uid(), group: 'fixed', name: "Зв'язок та інтернет", type: 'uah', value: 500 }
       ].concat(defaultDebts(), [
-        { id: uid(), group: 'daily', name: 'Їжа та побут', type: 'uah', value: 14000, jar: JAR_FOOD },
+        { id: uid(), group: 'daily', name: 'Їжа та побут', type: 'uah', value: 14000 },
         { id: uid(), group: 'daily', name: 'Транспорт / пальне', type: 'uah', value: 2500 },
         { id: uid(), group: 'daily', name: "Здоров'я та аптека", type: 'uah', value: 1500 },
         { id: uid(), group: 'daily', name: 'Подарунки та непередбачене', type: 'uah', value: 1500 },
         { id: uid(), group: 'personal', name: 'Мої кишенькові', type: 'uah', value: 2000 },
         { id: uid(), group: 'personal', name: 'Кишенькові дружини', type: 'uah', value: 2000 },
         { id: uid(), group: 'personal', name: 'Кафе та розваги разом', type: 'uah', value: 2500 },
-        { id: uid(), group: 'goals', name: 'Подушка безпеки', type: 'percent', value: 10, jar: JAR_SAVE },
+        { id: uid(), group: 'goals', name: 'Подушка безпеки', type: 'percent', value: 10 },
         { id: uid(), group: 'goals', name: 'Відпустка / великі покупки', type: 'rest', value: 0 }
-      ]),
+      ]).map(withDefaultJar),
       month: monthKey(), expenses: [], history: [], debtsSeeded: true, wifeCreditMoved: true
     };
   }
@@ -469,7 +493,7 @@
         if (credits.length > 1) s.envelopes.splice(s.envelopes.indexOf(credits[credits.length - 1]), 1);
         s.wifeCreditMoved = true;
       }
-          return s;
+          return replaceOldJars(s);
         }
       }
       var old = localStorage.getItem(OLD_KEY);
