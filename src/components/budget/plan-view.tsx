@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, ExternalLink, PiggyBank, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import type { Budget } from '@/hooks/use-budget'
 import { GROUPS, amountOf, envEmoji, fmt, goalProgress, monthLabel, num, payoffOf, spentBy, uid, untilMonth, type GoalProgress } from '@/lib/budget'
 import type { Envelope, GroupId } from '@/lib/types'
+import { REVEAL, reveal } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 import { EditRow, MiniField } from './edit-row'
 import { Columns, Step, groupAccent, groupBar, groupFill } from './layout'
@@ -131,7 +132,7 @@ export function PlanView({ b }: { b: Budget }) {
     </div>
   )
 
-  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const go = reveal
 
   return (
     <>
@@ -201,6 +202,12 @@ function GroupCard({ b, group, step }: { b: Budget; group: GroupId; step: number
     setOpenState(v)
     try { const s = new Set(readCollapsed()); if (v) s.delete(group); else s.add(group); localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...s])) } catch { /* private mode */ }
   }
+  // Opened from a link elsewhere (overview chips, dashboard widgets).
+  useEffect(() => {
+    const on = (e: Event) => { if ((e as CustomEvent).detail === `plan-${group}`) setOpenState(true) }
+    window.addEventListener(REVEAL, on)
+    return () => window.removeEventListener(REVEAL, on)
+  }, [group])
   const g = GROUPS.find((x) => x.id === group)!
   const envs = state.envelopes.filter((e) => e.group === group)
   const spent = spentBy(state)

@@ -5,10 +5,10 @@ import { cn } from '@/lib/utils'
  * Phones: one column (side cards, then main; a card can move itself with `order-last`).
  * Wide screens: a side column next to the main area.
  */
-export function Columns({ side, main, stickySide = false }: { side: React.ReactNode; main: React.ReactNode; stickySide?: boolean }) {
+export function Columns({ side, main, stickySide = false, sideRight = false }: { side: React.ReactNode; main: React.ReactNode; stickySide?: boolean; sideRight?: boolean }) {
   return (
-    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start lg:gap-5">
-      <div className={cn('contents lg:flex lg:flex-col lg:gap-4', stickySide && 'lg:sticky lg:top-24')}>{side}</div>
+    <div className={cn('flex flex-col gap-4 lg:grid lg:items-start lg:gap-5', sideRight ? 'lg:grid-cols-[minmax(0,1fr)_400px]' : 'lg:grid-cols-[380px_minmax(0,1fr)]')}>
+      <div className={cn('contents lg:flex lg:flex-col lg:gap-4', stickySide && 'lg:sticky lg:top-24', sideRight && 'lg:order-last')}>{side}</div>
       <div className="contents lg:block lg:min-w-0">{main}</div>
     </div>
   )

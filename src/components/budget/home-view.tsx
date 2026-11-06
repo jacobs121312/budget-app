@@ -9,6 +9,7 @@ import {
   bills, dailySpend, envEmoji, fmt, goalProgress, insights, monthKey, monthLabel, num, paceSeries, payoffOf, spendingByPerson, spentBy, untilMonth,
 } from '@/lib/budget'
 import type { Envelope } from '@/lib/types'
+import { TAP, goTo, tap } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 import { goalText } from './plan-view'
 
@@ -31,6 +32,7 @@ const flexible = (e: Envelope) => e.group === 'daily' || e.group === 'personal'
 
 export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
   const { state, c } = b
+  const go = (tab: Parameters<typeof goTo>[1], id?: string) => goTo(b.setTab, tab, id)
   const spent = spentBy(state)
   const pace = paceSeries(state, c)
   const list = bills(state, c)
@@ -82,10 +84,10 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
   const recent = [...state.expenses].sort((a, b2) => (a.date < b2.date ? 1 : -1)).slice(0, 6)
   const history = state.history.slice(-6).map((h) => ({ month: monthLabel(h.month).split(' ')[0].slice(0, 3), spent: h.spent, plan: h.plan, saved: h.saved }))
   const stats = [
-    { t: 'Витрачено', v: fmt(spendTotal), s: `з ${fmt(spendPlan)}`, p: spendPlan ? (spendTotal / spendPlan) * 100 : 0 },
-    { t: 'Відкладено', v: fmt(savedNow), s: `план ${fmt(c.groups.goals || 0)}`, p: c.groups.goals ? (savedNow / c.groups.goals) * 100 : 0, bar: '[&>[data-slot=progress-indicator]]:bg-[var(--chart-5)]' },
-    { t: 'Борги', v: fmt(debtLeft), s: lastDebt ? `до ${monthLabel(lastDebt).toLowerCase()}` : 'боргів немає' },
-    { t: 'Нерозподілено', v: fmt(c.unallocated), s: Math.round(c.unallocated) === 0 ? 'кожна гривня при ділі' : 'розподіліть на «Плані»', tone: Math.round(c.unallocated) === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary' },
+    { go: () => go('track'), t: 'Витрачено', v: fmt(spendTotal), s: `з ${fmt(spendPlan)}`, p: spendPlan ? (spendTotal / spendPlan) * 100 : 0 },
+    { go: () => go('plan', 'plan-goals'), t: 'Відкладено', v: fmt(savedNow), s: `план ${fmt(c.groups.goals || 0)}`, p: c.groups.goals ? (savedNow / c.groups.goals) * 100 : 0, bar: '[&>[data-slot=progress-indicator]]:bg-[var(--chart-5)]' },
+    { go: () => go('plan', 'plan-debts'), t: 'Борги', v: fmt(debtLeft), s: lastDebt ? `до ${monthLabel(lastDebt).toLowerCase()}` : 'боргів немає' },
+    { go: () => go('plan'), t: 'Нерозподілено', v: fmt(c.unallocated), s: Math.round(c.unallocated) === 0 ? 'кожна гривня при ділі' : 'розподіліть на «Плані»', tone: Math.round(c.unallocated) === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary' },
   ]
 
   return (
@@ -117,7 +119,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
         </div>
         <div className="grid grid-cols-2 gap-3 lg:col-span-6 lg:gap-4">
           {stats.map((k) => (
-            <Card key={k.t} className="gap-1.5 py-4 sm:py-4">
+            <Card key={k.t} {...tap(k.go, k.t)} className={cn("gap-1.5 py-4 sm:py-4", TAP)}>
               <CardContent className="space-y-1 px-4 sm:px-4">
                 <div className="text-xs text-muted-foreground">{k.t}</div>
                 <div className={cn('num text-xl font-semibold', k.tone)}>{k.v}</div>
@@ -138,7 +140,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
           const line = days.slice(1, today + 1).map((v, i) => ({ i, v: (sum += v) }))
           const over = s > p * (today / dim) + 1
           return (
-            <Card key={e.id} className="min-w-[78%] snap-start gap-3 py-4 sm:min-w-0">
+            <Card key={e.id} {...tap(() => go('track', `track-env-${e.id}`), e.name)} className={cn("min-w-[78%] snap-start gap-3 py-4 sm:min-w-0", TAP)}>
               <CardContent className="space-y-3 px-4">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="flex size-7 items-center justify-center rounded-lg bg-muted text-sm" aria-hidden>{envEmoji(e)}</span>
@@ -174,7 +176,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </section>
 
       {/* Pace of the month */}
-      <Card className="lg:col-span-8">
+      <Card {...tap(() => go('track'))} className={cn("lg:col-span-8", TAP)}>
         <CardHeader>
           <CardDescription>Щоденне й особисте за місяць</CardDescription>
           <CardTitle className="num text-2xl font-semibold">{fmt(pace.spentPaced)} <span className="whitespace-nowrap text-base font-normal text-muted-foreground">з {fmt(pace.planPaced)}</span></CardTitle>
@@ -207,7 +209,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </Card>
 
       {/* Last 7 days */}
-      <Card className="lg:col-span-4">
+      <Card {...tap(() => go('track', 'track-list'))} className={cn("lg:col-span-4", TAP)}>
         <CardHeader>
           <CardDescription>Останні 7 днів</CardDescription>
           <CardTitle className="num text-2xl font-semibold">{fmt(weekTotal)}</CardTitle>
@@ -227,7 +229,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </Card>
 
       {/* Recent activity */}
-      <Card className="lg:col-span-4">
+      <Card {...tap(() => go('track', 'track-list'))} className={cn("lg:col-span-4", TAP)}>
         <CardHeader>
           <CardTitle>Останні витрати</CardTitle>
           <CardAction><Button variant="ghost" size="sm" className="h-7 rounded-full text-xs" onClick={() => b.setTab('track')}>Усі <ArrowRight /></Button></CardAction>
@@ -252,7 +254,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </Card>
 
       {/* Bills: paid / left to pay */}
-      <Card className="lg:col-span-4">
+      <Card {...tap(() => go('track', 'track-fixed'))} className={cn("lg:col-span-4", TAP)}>
         <CardHeader>
           <CardTitle>Платежі місяця</CardTitle>
           <CardDescription>
@@ -277,7 +279,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </Card>
 
       {/* Month calendar heatmap */}
-      <Card className="lg:col-span-4">
+      <Card {...tap(() => go('track', 'track-list'))} className={cn("lg:col-span-4", TAP)}>
         <CardHeader>
           <CardTitle>Календар витрат</CardTitle>
           <CardDescription>Що темніше — то більше витрачено того дня</CardDescription>
@@ -324,7 +326,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </Card>
 
       {/* Trending categories */}
-      <Card className="lg:col-span-7">
+      <Card {...tap(() => go('track'))} className={cn("lg:col-span-7", TAP)}>
         <CardHeader><CardTitle>Темп статей</CardTitle><CardDescription>Витрачено проти того, скільки місяця минуло ({Math.round(elapsedShare * 100)}%)</CardDescription></CardHeader>
         <CardContent className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
           {trending.map((x) => (
@@ -343,7 +345,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </Card>
 
       {/* Goals */}
-      <Card className="lg:col-span-7">
+      <Card {...tap(() => go('plan', 'plan-goals'))} className={cn("lg:col-span-7", TAP)}>
         <CardHeader><CardTitle>Цілі</CardTitle><CardDescription>Подушка, відпустка й інші накопичення</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           {state.envelopes.filter((e) => e.group === 'goals').map((e) => {
@@ -364,7 +366,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </Card>
 
       {/* Who spends */}
-      <Card className="lg:col-span-5">
+      <Card {...tap(() => go('track', 'track-list'))} className={cn("lg:col-span-5", TAP)}>
         <CardHeader><CardTitle>Хто витрачає</CardTitle><CardDescription>Цього місяця, без накопичень</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           {!peopleTotal && <p className="text-sm text-muted-foreground">Ще немає витрат.</p>}
@@ -388,7 +390,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
 
       {/* History */}
       {history.length > 0 && (
-        <Card className="lg:col-span-12">
+        <Card {...tap(() => go('track', 'track-history'))} className={cn("lg:col-span-12", TAP)}>
           <CardHeader><CardTitle>Останні місяці</CardTitle><CardDescription>Витрачено проти плану і скільки відкладено</CardDescription></CardHeader>
           <CardContent>
             <ChartContainer config={historyConfig} className="aspect-auto h-56 w-full">

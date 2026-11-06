@@ -93,7 +93,7 @@ export default function App() {
             <ConnectBanner b={b} onConnect={() => setConnecting(true)} />
             <TabsContent value="home"><HomeView b={b} onAdd={() => setAdding(true)} /></TabsContent>
             <TabsContent value="plan"><PlanView b={b} /></TabsContent>
-            <TabsContent value="track"><TrackView b={b} /></TabsContent>
+            <TabsContent value="track"><TrackView b={b} onAdd={() => setAdding(true)} /></TabsContent>
             <TabsContent value="jars"><JarsView b={b} /></TabsContent>
             <Footer b={b} open={connecting} setOpen={setConnecting} />
           </main>
