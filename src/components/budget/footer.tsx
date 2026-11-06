@@ -9,8 +9,7 @@ import { monthKey } from '@/lib/budget'
 
 const DEFAULT_AGENT = 'https://budget-agent.savych.workers.dev'
 
-export function Footer({ b }: { b: Budget }) {
-  const [open, setOpen] = useState(false)
+export function Footer({ b, open, setOpen }: { b: Budget; open: boolean; setOpen: (v: boolean) => void }) {
   const [url, setUrl] = useState(b.sync?.url || DEFAULT_AGENT)
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)

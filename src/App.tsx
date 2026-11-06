@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { House, LayoutDashboard, ListChecks, PiggyBank, Plus, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ConnectBanner, SyncButton, ThemeButton } from '@/components/budget/header-tools'
 import { Footer } from '@/components/budget/footer'
 import { HomeView } from '@/components/budget/home-view'
 import { JarsView } from '@/components/budget/jars-view'
@@ -23,9 +25,24 @@ const TABS: { id: BudgetState['tab']; label: string; icon: typeof House }[] = [
 export default function App() {
   const b = useBudget()
   const [adding, setAdding] = useState(false)
+  const [connecting, setConnecting] = useState(false)
   const setTab = (t: string) => { b.setTab(t as BudgetState['tab']); window.scrollTo({ top: 0 }) }
 
+  // Keyboard: N or + — new expense; 1–4 — tabs. Ignored while typing in a field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target instanceof Element ? e.target : null
+      if (e.metaKey || e.ctrlKey || e.altKey || el?.closest('input, textarea, select, [contenteditable], [role=dialog]')) return
+      if (e.key === 'n' || e.key === 'т' || e.key === '+') { e.preventDefault(); setAdding(true) }
+      const i = Number(e.key) - 1
+      if (TABS[i]) { b.setTab(TABS[i].id); window.scrollTo({ top: 0 }) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [b])
+
   return (
+    <TooltipProvider delayDuration={300}>
     <Tabs value={b.state.tab} onValueChange={setTab} className="min-h-svh gap-0">
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -38,21 +55,27 @@ export default function App() {
               <p className="hidden text-xs text-muted-foreground sm:block">Спільний котел → кожна гривня має своє призначення</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <TabsList className="hidden w-[480px] md:flex">
-              {TABS.map((t) => <TabsTrigger key={t.id} value={t.id}><t.icon /> {t.label}</TabsTrigger>)}
+          <div className="flex items-center gap-1 md:gap-2">
+            <TabsList className="mr-1 hidden w-[480px] md:flex">
+              {TABS.map((t, i) => <TabsTrigger key={t.id} value={t.id} title={`Клавіша ${i + 1}`}><t.icon /> {t.label}</TabsTrigger>)}
             </TabsList>
-            <Button className="hidden md:inline-flex" onClick={() => setAdding(true)}><Plus /> Витрата</Button>
+            <SyncButton b={b} onConnect={() => setConnecting(true)} />
+            <ThemeButton />
+            <Tooltip>
+              <TooltipTrigger asChild><Button className="ml-1 hidden md:inline-flex" onClick={() => setAdding(true)}><Plus /> Витрата</Button></TooltipTrigger>
+              <TooltipContent>Клавіша N</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+        <ConnectBanner b={b} onConnect={() => setConnecting(true)} />
         <TabsContent value="home"><HomeView b={b} /></TabsContent>
         <TabsContent value="plan"><PlanView b={b} /></TabsContent>
         <TabsContent value="track"><TrackView b={b} /></TabsContent>
         <TabsContent value="jars"><JarsView b={b} /></TabsContent>
-        <Footer b={b} />
+        <Footer b={b} open={connecting} setOpen={setConnecting} />
       </main>
 
       {/* Phones: app-style bottom navigation with a quick-add button in the middle. */}
@@ -72,13 +95,14 @@ export default function App() {
       <QuickAdd b={b} open={adding} onOpenChange={setAdding} />
       <Toaster position="top-center" />
     </Tabs>
+    </TooltipProvider>
   )
 }
 
 function NavItem({ label, icon: Icon, active, onClick }: { label: string; icon: typeof House; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={cn('flex flex-col items-center gap-0.5 text-[11px]', active ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-      <Icon className="size-5" />
+    <button onClick={onClick} aria-current={active ? 'page' : undefined} className={cn('flex h-full flex-col items-center justify-center gap-0.5 text-[11px] transition-colors active:scale-95', active ? 'font-semibold text-primary' : 'text-muted-foreground')}>
+      <span className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', active && 'bg-primary/10')}><Icon className="size-5" /></span>
       {label}
     </button>
   )

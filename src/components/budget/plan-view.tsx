@@ -2,13 +2,14 @@ import { ExternalLink, PiggyBank, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import type { Budget } from '@/hooks/use-budget'
 import { GROUPS, amountOf, envEmoji, fmt, goalProgress, monthLabel, num, payoffOf, spentBy, uid, untilMonth, type GoalProgress } from '@/lib/budget'
 import type { Envelope, GroupId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { EditRow, MiniField } from './edit-row'
-import { Columns, Step, groupAccent } from './layout'
+import { Columns, Step, groupAccent, groupBar } from './layout'
 
 export function goalText(g: GoalProgress) {
   const cash = g.cash ? ` (з них $${g.cash.usd} готівкою ≈ ${fmt(g.cash.uah)})` : ''
@@ -221,32 +222,35 @@ function GroupCard({ b, group, step }: { b: Budget; group: GroupId; step: number
               onName={(v) => edit(e.id, (x) => { x.name = v })}
               onType={(t) => setType(e, t)}
               onValue={(v) => edit(e.id, (x) => { x.value = v })}
-              onRemove={() => remove(e)}>
-              {group === 'fixed' && (
-                <MiniField label="день оплати" width="w-14" placeholder="?" value={e.payDay ?? ''} onChange={(v) => edit(e.id, (x) => { const d = Math.round(num(v)); x.payDay = d >= 1 ? Math.min(31, d) : null })} />
-              )}
+              onRemove={() => remove(e)}
+              detailsOpen={!!e.debt && !num(e.debt.left)}
+              details={group === 'fixed' ? (
+                <MiniField label="день оплати" width="@lg:w-16" placeholder="?" value={e.payDay ?? ''} onChange={(v) => edit(e.id, (x) => { const d = Math.round(num(v)); x.payDay = d >= 1 ? Math.min(31, d) : null })} />
+              ) : e.debt ? (
+                <>
+                  <MiniField label="залишок боргу" value={e.debt.left} onChange={(v) => edit(e.id, (x) => { x.debt!.left = num(v) })} />
+                  <MiniField label="день платежу" width="@lg:w-16" placeholder="?" value={e.debt.day ?? ''} onChange={(v) => edit(e.id, (x) => { const d = Math.round(num(v)); x.debt!.day = d >= 1 ? Math.min(31, d) : null })} />
+                </>
+              ) : group === 'goals' ? (
+                <>
+                  <MiniField label="ціль, грн" placeholder="—" value={e.goal?.amount || ''} onChange={(v) => edit(e.id, (x) => {
+                    const n = Math.round(num(v)); if (n > 0) x.goal = { ...x.goal, amount: n }; else if (x.goal) { delete x.goal.amount; if (!x.goal.date) delete x.goal }
+                  })} />
+                  <MiniField label="до" type="month" width="@lg:w-36" value={e.goal?.date || ''} onChange={(v) => edit(e.id, (x) => { x.goal = { ...x.goal, date: /^\d{4}-\d{2}$/.test(v) ? v : null } })} />
+                  <MiniField label="вже є, грн" placeholder="0" value={Math.round(num(e.balance) + (spent[e.id] || 0)) || ''} onChange={(v) => edit(e.id, (x) => { x.balance = Math.max(0, Math.round(num(v)) - Math.round(spent[e.id] || 0)) })} />
+                  <MiniField label="готівкою $" width="@lg:w-20" placeholder="0" value={e.cashUsd || ''} onChange={(v) => edit(e.id, (x) => { const n = Math.round(num(v) * 100) / 100; if (n > 0) x.cashUsd = n; else delete x.cashUsd })} />
+                </>
+              ) : undefined}>
+              {group === 'fixed' && e.payDay && <span className="text-xs text-muted-foreground">оплата {e.payDay}-го</span>}
               {e.debt && (
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <MiniField label="борг" value={e.debt.left} onChange={(v) => edit(e.id, (x) => { x.debt!.left = num(v) })} />
-                    <MiniField label="день" width="w-14" placeholder="?" value={e.debt.day ?? ''} onChange={(v) => edit(e.id, (x) => { const d = Math.round(num(v)); x.debt!.day = d >= 1 ? Math.min(31, d) : null })} />
-                  </div>
-                  <div className={cn('text-xs', po?.done ? 'font-semibold text-emerald-600' : 'text-muted-foreground')}>
-                    {po?.done ? '✓ закрито' : po?.last ? `останній платіж: ${monthLabel(po.last)} · ще ${po.n} плат.` : 'вкажіть щомісячний платіж'}
-                  </div>
-                </div>
+                <span className={cn('text-xs', po?.done ? 'font-semibold text-emerald-600' : 'text-muted-foreground')}>
+                  {po?.done ? '✓ закрито' : po?.last ? `борг ${fmt(num(e.debt.left))} · останній платіж ${monthLabel(po.last).toLowerCase()} · ще ${po.n} плат.${e.debt.day ? ` · ${e.debt.day}-го` : ''}` : 'вкажіть залишок боргу й платіж'}
+                </span>
               )}
-              {group === 'goals' && gp && (
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <MiniField label="ціль" placeholder="—" value={e.goal?.amount || ''} onChange={(v) => edit(e.id, (x) => {
-                      const n = Math.round(num(v)); if (n > 0) x.goal = { ...x.goal, amount: n }; else if (x.goal) { delete x.goal.amount; if (!x.goal.date) delete x.goal }
-                    })} />
-                    <MiniField label="до" type="month" width="w-36" value={e.goal?.date || ''} onChange={(v) => edit(e.id, (x) => { x.goal = { ...x.goal, date: /^\d{4}-\d{2}$/.test(v) ? v : null } })} />
-                    <MiniField label="є" placeholder="0" value={Math.round(num(e.balance) + (spent[e.id] || 0)) || ''} onChange={(v) => edit(e.id, (x) => { x.balance = Math.max(0, Math.round(num(v)) - Math.round(spent[e.id] || 0)) })} />
-                    <MiniField label="готівкою $" width="w-20" placeholder="0" value={e.cashUsd || ''} onChange={(v) => edit(e.id, (x) => { const n = Math.round(num(v) * 100) / 100; if (n > 0) x.cashUsd = n; else delete x.cashUsd })} />
-                  </div>
-                  {goalText(gp) && <div className={cn('text-xs', gp.done ? 'font-semibold text-emerald-600' : gp.hasTarget && !gp.onTrack ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>{goalText(gp)}</div>}
+              {gp && goalText(gp) && (
+                <div className="w-full space-y-1">
+                  {gp.hasTarget && <Progress value={Math.min(100, (gp.saved / gp.amount!) * 100)} className={cn('h-1.5', groupBar.goals)} />}
+                  <div className={cn('text-xs', gp.done ? 'font-semibold text-emerald-600' : gp.hasTarget && !gp.onTrack ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>{goalText(gp)}</div>
                 </div>
               )}
             </EditRow>
