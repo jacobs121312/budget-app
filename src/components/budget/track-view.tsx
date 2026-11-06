@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ExternalLink, X } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,13 +7,17 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Budget } from '@/hooks/use-budget'
-import { GROUPS, fmt, goalProgress, monthKey, monthLabel, num, spentBy } from '@/lib/budget'
+import { GROUPS, envEmoji, fmt, goalProgress, monthKey, monthLabel, num, spentBy } from '@/lib/budget'
+import type { Envelope } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { CoverDialog } from './cover-dialog'
+import { ExpenseList } from './expense-list'
 import { Columns, groupAccent, groupBar } from './layout'
 import { goalText } from './plan-view'
 
 export function TrackView({ b }: { b: Budget }) {
   const { state, c } = b
+  const [covering, setCovering] = useState<Envelope | null>(null)
   const spent = spentBy(state)
   const now = new Date()
   const isCurrent = state.month === monthKey(now)
@@ -106,7 +110,7 @@ export function TrackView({ b }: { b: Budget }) {
                   return (
                     <div key={e.id} className="space-y-1.5 py-2.5">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-[15px] font-medium">{e.name || 'Без назви'}</span>
+                        <span className="truncate text-[15px] font-medium">{envEmoji(e)} {e.name || 'Без назви'}</span>
                         <span className={cn('whitespace-nowrap font-semibold tabular-nums', !isGoal && l < 0 && 'text-destructive')}>
                           {isGoal ? `${fmt(s)} з ${fmt(p)}` : l < 0 ? `перевитрата ${fmt(-l)}` : fmt(l)}
                         </span>
@@ -120,6 +124,7 @@ export function TrackView({ b }: { b: Budget }) {
                           {canPay && (paid
                             ? <span className="font-semibold text-emerald-600">✓ {isGoal ? 'відкладено' : 'сплачено'}</span>
                             : <button className="font-semibold text-primary" onClick={() => void b.addExpense(e.id, p - s, isGoal ? 'відкладено' : 'оплата')}>{isGoal ? `Відкласти ${fmt(p - s)}` : 'Сплачено'}</button>)}
+                          {!isGoal && (g.id === 'daily' || g.id === 'personal') && l < -0.5 && <button className="font-semibold text-destructive" onClick={() => setCovering(e)}>Перекрити</button>}
                           {e.jar && <a className="flex items-center gap-0.5 font-semibold text-primary" href={e.jar} target="_blank" rel="noopener noreferrer">Банка <ExternalLink className="size-3" /></a>}
                         </span>
                       </div>
@@ -133,33 +138,7 @@ export function TrackView({ b }: { b: Budget }) {
         })}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Усі витрати місяця</CardTitle>
-          <CardAction className="text-sm text-muted-foreground">{state.expenses.length || ''}</CardAction>
-        </CardHeader>
-        <CardContent className="divide-y">
-          {!state.expenses.length && <p className="py-2 text-sm text-muted-foreground">Поки немає записів. Записуйте кожну витрату — саме так видно, куди йдуть гроші.</p>}
-          {[...state.expenses].sort((a, x) => (a.date < x.date ? 1 : -1)).map((x) => {
-            const env = state.envelopes.find((e) => e.id === x.env)
-            return (
-              <div key={x.id} className="flex items-center gap-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{env ? env.name || 'Без назви' : 'Видалена стаття'}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {x.source === 'mono' ? '💳 ' : x.source === 'receipt' ? '🧾 ' : ''}
-                    {new Date(x.date).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}{x.who ? ` · ${x.who}` : ''}{x.note ? ` · ${x.note}` : ''}
-                  </div>
-                </div>
-                <span className="whitespace-nowrap font-semibold tabular-nums">{fmt(x.amount)}</span>
-                <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label="Видалити запис" onClick={() => void b.deleteExpense(x.id)}>
-                  <X className="size-4" />
-                </Button>
-              </div>
-            )
-          })}
-        </CardContent>
-      </Card>
+      <ExpenseList b={b} />
 
       <Card>
         <CardHeader><CardTitle>Попередні місяці</CardTitle></CardHeader>
@@ -177,7 +156,12 @@ export function TrackView({ b }: { b: Budget }) {
     </div>
   )
 
-  return <Columns side={side} main={main} stickySide />
+  return (
+    <>
+      <Columns side={side} main={main} stickySide />
+      <CoverDialog b={b} target={covering} onClose={() => setCovering(null)} />
+    </>
+  )
 }
 
 function AddExpense({ b }: { b: Budget }) {

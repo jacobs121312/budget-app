@@ -145,7 +145,9 @@ export function closeMonth(state: BudgetState, nowKey = monthKey()): HistoryEntr
     total += s
     if (s - c.plan[e.id] > 0.5) over.push({ name: e.name || 'Без назви', amount: Math.round(s - c.plan[e.id]) })
   }
-  const entry = { month: state.month, income: Math.round(c.income), plan: Math.round(plan), spent: Math.round(total), saved: Math.round(saved), over }
+  const byEnv: Record<string, { plan: number; spent: number }> = {}
+  for (const e of state.envelopes) byEnv[e.name || e.id] = { plan: Math.round(c.plan[e.id] || 0), spent: Math.round(spent[e.id] || 0) }
+  const entry = { month: state.month, income: Math.round(c.income), plan: Math.round(plan), spent: Math.round(total), saved: Math.round(saved), over, byEnv }
   state.history = state.history.filter((h) => h.month !== state.month)
   state.history.push(entry)
   if (state.history.length > 24) state.history = state.history.slice(-24)
@@ -222,4 +224,110 @@ export function splitSalary(state: BudgetState, owner: Owner, amount: number, go
   const rest = goalEnvs.find((e) => e.type === 'rest')
   if (rest && left > 0.5) { goals[rest.id] = left; add({ label: rest.name, jar: rest.jar || null, card: false, goal: rest.id }, left) }
   return { lines, goals, shortfall: Math.round(shortfall) }
+}
+
+// ---------------------------------------------------------------- dashboard helpers
+
+const EMOJI: [RegExp, string][] = [
+  [/оренд|квартир|житл/i, '🏠'], [/комунал|світл|газ/i, '💡'], [/зв.?яз|інтернет|телефон/i, '📶'], [/агент|claude/i, '🤖'],
+  [/алло|foxtrot|розстроч|кредит/i, '💳'], [/їж|продукт|побут/i, '🛒'], [/транспорт|пальн|таксі/i, '🚗'], [/аптек/i, '💊'],
+  [/лікар|здоров|обстеж|стомат/i, '🩺'], [/одяг|взут/i, '👕'], [/подарун|непередбач/i, '🎁'], [/кишенькові/i, '👛'],
+  [/стрижк|перукар/i, '💈'], [/манікюр|краса/i, '💅'], [/кафе|розваг|ресторан/i, '🍽️'], [/подушк/i, '🛡️'], [/відпуст|подорож/i, '🏖️'],
+  [/десятин/i, '🙏'], [/діт|дитин/i, '🧸'], [/спорт|зал/i, '🏋️'], [/навчан|курс/i, '📚'],
+]
+const GROUP_EMOJI: Record<GroupId, string> = { fixed: '📄', debts: '💳', daily: '🧾', personal: '🎈', goals: '🎯' }
+
+export function envEmoji(e: Pick<Envelope, 'name' | 'group'>) {
+  return EMOJI.find(([re]) => re.test(e.name || ''))?.[1] || GROUP_EMOJI[e.group] || '•'
+}
+
+/** Payment day of a bill: installments' debt day or a fixed payment's payDay. */
+export const billDay = (e: Envelope) => (e.debt ? e.debt.day : e.group === 'fixed' ? e.payDay ?? null : null) || null
+
+export interface Bill { env: Envelope; day: number; amount: number; paid: number; left: number; inDays: number }
+
+/** Bills of the month with a day: what is paid and what is still to pay (Copilot "recurrings"). */
+export function bills(state: BudgetState, c = calc(state), today = new Date()): Bill[] {
+  const spent = spentBy(state)
+  const [y, m] = state.month.split('-').map(Number)
+  const dim = new Date(y, m, 0).getDate()
+  const isCurrent = state.month === monthKey(today)
+  return state.envelopes
+    .filter((e) => (e.group === 'fixed' || e.group === 'debts') && billDay(e) && (c.plan[e.id] || 0) > 0)
+    .map((e) => {
+      const day = Math.min(billDay(e)!, dim)
+      const amount = c.plan[e.id] || 0
+      const paid = spent[e.id] || 0
+      return { env: e, day, amount, paid, left: Math.max(0, amount - paid), inDays: isCurrent ? day - today.getDate() : 99 }
+    })
+    .sort((a, b) => a.day - b.day)
+}
+
+/** Cumulative spending by day vs the even pace of the month's spending plan (goals excluded). */
+export function paceSeries(state: BudgetState, c = calc(state), today = new Date()) {
+  const [y, m] = state.month.split('-').map(Number)
+  const dim = new Date(y, m, 0).getDate()
+  const isCurrent = state.month === monthKey(today)
+  const lastDay = isCurrent ? today.getDate() : dim
+  // Only flexible spending gets a pace: bills are paid in lumps on their day.
+  const paced = new Set(state.envelopes.filter((e) => e.group === 'daily' || e.group === 'personal').map((e) => e.id))
+  const planPaced = state.envelopes.filter((e) => paced.has(e.id)).reduce((s, e) => s + (c.plan[e.id] || 0), 0)
+  const byDay = new Array(dim + 1).fill(0)
+  for (const x of state.expenses) {
+    if (!paced.has(x.env)) continue
+    const d = new Date(x.date)
+    if (monthKey(d) === state.month) byDay[d.getDate()] += num(x.amount)
+  }
+  const out: { day: number; actual?: number; pace: number }[] = []
+  let sum = 0
+  for (let d = 1; d <= dim; d++) {
+    sum += byDay[d]
+    out.push({ day: d, actual: d <= lastDay ? Math.round(sum) : undefined, pace: Math.round((planPaced / dim) * d) })
+  }
+  const spentPaced = sum
+  const expectedNow = (planPaced / dim) * lastDay
+  return { series: out, planPaced, spentPaced, expectedNow, freeToSpend: planPaced - spentPaced, daysLeft: isCurrent ? dim - today.getDate() + 1 : 0, dim }
+}
+
+/** Who spent what this month (couples view). */
+export function spendingByPerson(state: BudgetState) {
+  const out: Record<string, number> = {}
+  for (const x of state.expenses) {
+    const env = state.envelopes.find((e) => e.id === x.env)
+    if (!env || env.group === 'goals') continue
+    const who = x.who || 'Інше'
+    out[who] = (out[who] || 0) + num(x.amount)
+  }
+  return out
+}
+
+export interface Insight { tone: 'good' | 'warn' | 'bad' | 'info'; text: string }
+
+/** Short, concrete observations for the dashboard. */
+export function insights(state: BudgetState, c = calc(state), today = new Date()): Insight[] {
+  const out: Insight[] = []
+  const spent = spentBy(state)
+  const pace = paceSeries(state, c, today)
+  const [y, m] = state.month.split('-').map(Number)
+  const dim = new Date(y, m, 0).getDate()
+  const elapsed = state.month === monthKey(today) ? today.getDate() : dim
+  if (elapsed >= 4 && pace.planPaced > 0) {
+    const ratio = pace.spentPaced / Math.max(1, pace.expectedNow)
+    if (ratio > 1.15) out.push({ tone: 'warn', text: `Щоденні й особисті витрати йдуть на ${Math.round((ratio - 1) * 100)}% швидше за план. Щоб вкластися, до кінця місяця — ~${fmt(Math.max(0, pace.freeToSpend) / Math.max(1, pace.daysLeft))} на день.` })
+    else if (ratio < 0.85) out.push({ tone: 'good', text: `Витрачаєте на ${Math.round((1 - ratio) * 100)}% повільніше за план — так тримати! Зекономлене піде в накопичення.` })
+  }
+  for (const e of state.envelopes) {
+    const p = c.plan[e.id] || 0, s = spent[e.id] || 0
+    if ((e.group === 'daily' || e.group === 'personal') && p > 0 && s > p + 0.5) out.push({ tone: 'bad', text: `${envEmoji(e)} «${e.name}»: перевитрата ${fmt(s - p)}. Перекрийте її з іншої статті на вкладці «Витрати».` })
+  }
+  for (const b of bills(state, c, today)) {
+    if (b.left > 0.5 && b.inDays >= 0 && b.inDays <= 3) out.push({ tone: 'warn', text: `${envEmoji(b.env)} ${b.env.name}: ${b.inDays === 0 ? 'сьогодні' : `через ${b.inDays} дн.`} платіж ${fmt(b.left)}.` })
+    if (b.left > 0.5 && b.inDays < 0) out.push({ tone: 'bad', text: `${envEmoji(b.env)} ${b.env.name}: платіж ${b.day} числа не видно — перевірте, чи сплачено.` })
+  }
+  const goals = state.envelopes.filter((e) => e.group === 'goals').map((e) => ({ e, g: goalProgress(state, e, c, spent) }))
+  for (const { e, g } of goals) if (g.hasTarget && !g.done && !g.onTrack) out.push({ tone: 'warn', text: `${envEmoji(e)} Ціль «${e.name}» відстає: щоб встигнути до ${untilMonth(g.date!)}, треба ${fmt(g.neededPerMonth!)}/міс замість ${fmt(g.plan)}.` })
+  const debts = state.envelopes.filter((e) => e.debt)
+  const firstEnd = debts.map((e) => ({ e, po: payoffOf(state, e, c) })).filter((x) => x.po.last).sort((a, b) => (a.po.last! < b.po.last! ? -1 : 1))[0]
+  if (firstEnd) out.push({ tone: 'info', text: `${envEmoji(firstEnd.e)} Наступним закриється «${firstEnd.e.name}» — останній платіж у ${monthLabel(firstEnd.po.last!).toLowerCase()}. Звільнені ${fmt(c.plan[firstEnd.e.id] || 0)}/міс варто одразу направити в накопичення.` })
+  return out.slice(0, 6)
 }

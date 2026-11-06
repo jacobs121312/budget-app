@@ -4,7 +4,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import type { Budget } from '@/hooks/use-budget'
-import { GROUPS, amountOf, fmt, goalProgress, monthLabel, num, payoffOf, spentBy, uid, untilMonth, type GoalProgress } from '@/lib/budget'
+import { GROUPS, amountOf, envEmoji, fmt, goalProgress, monthLabel, num, payoffOf, spentBy, uid, untilMonth, type GoalProgress } from '@/lib/budget'
 import type { Envelope, GroupId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { EditRow, MiniField } from './edit-row'
@@ -142,7 +142,7 @@ export function PlanView({ b }: { b: Budget }) {
     <>
       <Columns side={side} main={main} />
       {/* Phones: the status sits in a bar at the bottom of the screen. */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/85 px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t bg-background/90 px-4 py-2 backdrop-blur md:bottom-0 md:pb-[calc(10px+env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
           <div>
             <div className="text-sm text-muted-foreground">{status.label}</div>
@@ -217,10 +217,14 @@ function GroupCard({ b, group, step }: { b: Budget; group: GroupId; step: number
               hint={e.type === 'rest' ? `= ${fmt(c.plan[e.id] || 0)}` : e.type !== 'uah' ? `= ${fmt(c.plan[e.id] || 0)}` : undefined}
               hintTone={e.type === 'rest' ? 'good' : 'muted'}
               jar={!!e.jar}
+              emoji={envEmoji(e)}
               onName={(v) => edit(e.id, (x) => { x.name = v })}
               onType={(t) => setType(e, t)}
               onValue={(v) => edit(e.id, (x) => { x.value = v })}
               onRemove={() => remove(e)}>
+              {group === 'fixed' && (
+                <MiniField label="день оплати" width="w-14" placeholder="?" value={e.payDay ?? ''} onChange={(v) => edit(e.id, (x) => { const d = Math.round(num(v)); x.payDay = d >= 1 ? Math.min(31, d) : null })} />
+              )}
               {e.debt && (
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-3">

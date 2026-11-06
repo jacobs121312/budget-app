@@ -105,6 +105,9 @@ export function useBudget() {
   const deleteExpense = useCallback((id: string) =>
     mutate('DELETE', '/api/expenses/' + encodeURIComponent(id), undefined, (d) => { d.expenses = d.expenses.filter((x) => x.id !== id) }), [mutate])
 
+  const moveExpense = useCallback((id: string, env: string) =>
+    mutate('PATCH', '/api/expenses/' + encodeURIComponent(id), { env }, (d) => { const x = d.expenses.find((y) => y.id === id); if (x) x.env = env }), [mutate])
+
   const closeMonth = useCallback(() =>
     mutate('POST', '/api/close-month', {}, (d) => { closeMonthRule(d, monthKey()) }), [mutate])
 
@@ -135,7 +138,7 @@ export function useBudget() {
   }, [])
 
   const c = useMemo(() => calc(state), [state])
-  return { state, c, update, setTab, addExpense, deleteExpense, closeMonth, sync, status, connect, disconnect, pull, replaceAll }
+  return { state, c, update, setTab, addExpense, deleteExpense, moveExpense, closeMonth, sync, status, connect, disconnect, pull, replaceAll }
 }
 
 export type Budget = ReturnType<typeof useBudget>

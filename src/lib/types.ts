@@ -16,6 +16,8 @@ export interface Envelope {
   jar?: string
   payer?: Owner
   debt?: { left: number; day: number | null }
+  /** Day of the month a fixed payment is due (rent, utilities). */
+  payDay?: number | null
   goal?: { amount?: number; date?: string | null }
   balance?: number
   cashUsd?: number
@@ -34,11 +36,16 @@ export interface Expense {
   receipt?: string
 }
 
-export interface HistoryEntry { month: string; income: number; plan: number; spent: number; saved: number; over: { name: string; amount: number }[] }
+export interface HistoryEntry {
+  month: string; income: number; plan: number; spent: number; saved: number
+  over: { name: string; amount: number }[]
+  /** Spent per envelope name (from Dec 2026 on). */
+  byEnv?: Record<string, { plan: number; spent: number }>
+}
 
 export interface BudgetState {
   v: 3
-  tab: 'plan' | 'track' | 'jars'
+  tab: 'home' | 'plan' | 'track' | 'jars'
   rate: number
   people: string[]
   incomes: Income[]

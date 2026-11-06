@@ -15,6 +15,7 @@ export function EditRow(props: {
   hint?: string
   hintTone?: 'muted' | 'good'
   jar?: boolean
+  emoji?: string
   onName: (v: string) => void
   onType: (t: string) => void
   onValue: (v: number) => void
@@ -24,12 +25,15 @@ export function EditRow(props: {
   return (
     <div className="flex items-start gap-3 border-b py-3 last:border-b-0">
       <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+        {props.emoji && <span className="text-base leading-none" aria-hidden>{props.emoji}</span>}
         <Input
           value={props.name}
           placeholder="Назва"
           onChange={(e) => props.onName(e.target.value)}
           className="h-8 border-transparent bg-transparent px-0 text-[15px] font-medium shadow-none hover:border-input hover:px-2 focus-visible:border-input focus-visible:px-2 dark:bg-transparent"
         />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <ToggleGroup
             type="single"

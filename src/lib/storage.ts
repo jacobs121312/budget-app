@@ -19,7 +19,7 @@ const env = (group: Envelope['group'], name: string, type: Envelope['type'], val
 
 export function defaultState(): BudgetState {
   return {
-    v: 3, tab: 'plan', rate: 45.5, people: ['Я', 'Дружина'],
+    v: 3, tab: 'home', rate: 45.5, people: ['Я', 'Дружина'],
     incomes: [
       { id: uid(), name: 'Моя зарплата', type: 'usd', value: 600 },
       { id: uid(), name: 'Зарплата дружини', type: 'uah', value: 40000 },
@@ -57,7 +57,7 @@ export function normalize(s: BudgetState): BudgetState {
   const d = defaultState()
   for (const k of ['people', 'incomes', 'firsts', 'expenses', 'history'] as const) if (!Array.isArray(s[k])) (s as any)[k] = d[k]
   if (!s.month) s.month = monthKey()
-  if (!['plan', 'track', 'jars'].includes(s.tab)) s.tab = 'plan'
+  if (!['home', 'plan', 'track', 'jars'].includes(s.tab)) s.tab = 'home'
   s.rate = num(s.rate) || d.rate
   for (const e of s.envelopes) {
     const id = e.jar?.split('/').pop()
