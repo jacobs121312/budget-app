@@ -175,19 +175,18 @@ export function PlanView({ b }: { b: Budget }) {
         </CardContent>
       </Card>
       <Columns side={side} main={main} />
-      {/* Phones: the status sits in a bar at the bottom of the screen. */}
-      <div className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-20 rounded-2xl border bg-card/90 px-4 py-2.5 shadow-lg backdrop-blur-xl md:inset-x-6 md:bottom-4 lg:hidden">
-        <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
-          <div>
-            <div className="text-sm text-muted-foreground">{status.label}</div>
-            <div className="text-xs text-muted-foreground">{status.hint}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            {u > 0 && <Button size="sm" onClick={toSavings}>У накопичення</Button>}
-            <span className={cn('text-2xl font-bold tabular-nums', status.tone)}>{fmt(u)}</span>
+      {/* Phones: a small reminder at the bottom only while the plan is off balance (it hides nothing when all is allocated). */}
+      {u !== 0 && (
+        <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-20 flex justify-center px-3 md:bottom-4 lg:hidden">
+          <div className="flex items-center gap-3 rounded-full border bg-card/95 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur-xl">
+            <span className="text-xs text-muted-foreground">{status.label}</span>
+            <span className={cn('num text-sm font-semibold', status.tone)}>{fmt(u)}</span>
+            {u > 0
+              ? <Button size="sm" className="h-7 rounded-full" onClick={toSavings}>У накопичення</Button>
+              : <span className="pr-2" />}
           </div>
         </div>
-      </div>
+      )}
     </>
   )
 }

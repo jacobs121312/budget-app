@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CheckCircle2, Info, ListChecks, PiggyBank, Plus, Sparkles, XCircle } from 'lucide-react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ const flexible = (e: Envelope) => e.group === 'daily' || e.group === 'personal'
 export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
   const { state, c } = b
   const go = (tab: Parameters<typeof goTo>[1], id?: string) => goTo(b.setTab, tab, id)
+  const [slide, setSlide] = useState(0)
   const spent = spentBy(state)
   const pace = paceSeries(state, c)
   const list = bills(state, c)
@@ -132,7 +134,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </section>
 
       {/* Envelope cards (like currency cards), plus a shortcut to the plan. */}
-      <section className="fade-x -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:fade-x-none sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:col-span-12 lg:grid-cols-4 lg:gap-5">
+      <section onScroll={(ev) => { const el = ev.currentTarget, w = (el.firstElementChild as HTMLElement | null)?.offsetWidth || 1; setSlide(Math.round(el.scrollLeft / (w + 12))) }} className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-[7.5%] pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:col-span-12 lg:grid-cols-4 lg:gap-5">
         {top.map((e) => {
           const p = c.plan[e.id] || 0, s = spent[e.id] || 0
           const days = dailySpend(state, (x) => x.id === e.id)
@@ -140,7 +142,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
           const line = days.slice(1, today + 1).map((v, i) => ({ i, v: (sum += v) }))
           const over = s > p * (today / dim) + 1
           return (
-            <Card key={e.id} {...tap(() => go('track', `track-env-${e.id}`), e.name)} className={cn("min-w-[78%] snap-start gap-3 py-4 sm:min-w-0", TAP)}>
+            <Card key={e.id} {...tap(() => go('track', `track-env-${e.id}`), e.name)} className={cn("w-[85%] shrink-0 snap-center snap-always gap-3 py-4 sm:w-auto sm:shrink", TAP)}>
               <CardContent className="space-y-3 px-4">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="flex size-7 items-center justify-center rounded-lg bg-muted text-sm" aria-hidden>{envEmoji(e)}</span>
@@ -169,11 +171,14 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
           )
         })}
         <button onClick={() => b.setTab('track')}
-          className="flex min-w-[60%] snap-start flex-col items-start justify-between gap-3 rounded-2xl border border-dashed p-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground sm:min-w-0">
+          className="flex w-[85%] shrink-0 snap-center snap-always flex-col items-start justify-between gap-3 rounded-2xl border border-dashed p-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground sm:w-auto sm:shrink">
           <span className="flex size-7 items-center justify-center rounded-lg border border-dashed"><ArrowRight className="size-4" /></span>
           <span>Усі статті, перевитрати й перекриття — на вкладці <b className="font-medium text-foreground">«Витрати»</b></span>
         </button>
       </section>
+      <div className="-mt-2 flex justify-center gap-1.5 sm:hidden" aria-hidden>
+        {Array.from({ length: top.length + 1 }, (_, k) => <span key={k} className={cn('h-1.5 rounded-full transition-all', k === slide ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30')} />)}
+      </div>
 
       {/* Pace of the month */}
       <Card {...tap(() => go('track'))} className={cn("lg:col-span-8", TAP)}>
