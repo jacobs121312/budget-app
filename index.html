@@ -213,6 +213,30 @@
   footer.note button { border: none; background: none; color: var(--blue); font-size: 12px; font-weight: 500; cursor: pointer; padding: 4px 6px; }
   .hidden { display: none !important; }
 
+  /* jars tab */
+  .jar-line { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .jar-line:last-child { border-bottom: none; }
+  .jar-line-main { flex: 1; min-width: 0; }
+  .jar-line-name { font-size: 14.5px; font-weight: 500; }
+  .jar-line-sub { font-size: 12px; color: var(--ink-faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .jar-line-amt { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .jar-line.on-card .jar-line-amt { color: var(--ink-soft); font-weight: 600; }
+  .jar-go { flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: #fff; background: var(--green); border-radius: 9px; padding: 7px 10px; text-decoration: none; white-space: nowrap; }
+  .jar-go:active { opacity: 0.85; }
+
+  /* desktop: wider page, cards flow in two columns */
+  @media (min-width: 960px) {
+    body { padding: 40px 32px 120px; }
+    .page { max-width: 1120px; }
+    .left-bar-inner { max-width: 1120px; }
+    header.top, .segmented { max-width: 560px; }
+    #planView, #trackView { column-count: 2; column-gap: 16px; }
+    #planView .card, #trackView .card, #trackView #monthBanner > * { break-inside: avoid; }
+    #trackView #monthBanner { column-span: all; }
+    .jars-persons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .jars-persons .card { margin-bottom: 14px; }
+  }
+
   @media (max-width: 380px) {
     .type-toggle button { padding: 5px 4px; font-size: 11px; }
     .row input[type="number"], .row .value-placeholder { width: 58px; }
@@ -235,7 +259,8 @@
 
   <div class="segmented" role="tablist">
     <button class="seg-btn" data-tab="plan" type="button">План</button>
-    <button class="seg-btn" data-tab="track" type="button">Витрати місяця</button>
+    <button class="seg-btn" data-tab="track" type="button">Витрати</button>
+    <button class="seg-btn" data-tab="jars" type="button">Банки</button>
   </div>
 
   <!-- ================= PLAN ================= -->
@@ -315,6 +340,20 @@
       <div class="card-head"><span class="card-title">Попередні місяці</span></div>
       <div id="histList"></div>
       <div style="padding:6px 8px 8px;"><button class="secondary-btn" id="closeMonth" type="button">Закрити місяць і почати новий</button></div>
+    </div>
+  </section>
+
+  <!-- ================= JARS ================= -->
+  <section id="jarsView" class="hidden">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Банки й суми</span></div>
+      <div class="card-hint">Зарплати кінця місяця — це бюджет наступного. У день зарплати кожен розкладає свою частину: у банки — кнопкою «Поповнити», решта лишається на картці. Агент у Telegram нагадає те саме.</div>
+    </div>
+    <div class="jars-persons" id="jarsPersons"></div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Усі банки</span></div>
+      <div class="card-hint">Скільки на місяць іде в кожну банку і хто кладе.</div>
+      <div id="jarsList"></div>
     </div>
   </section>
 
@@ -877,6 +916,7 @@
       amt.textContent = '0 грн';
     }
     renderTrack(c);
+    renderJars(c);
   }
 
   // Months of payments left (counting the current month) and the month of the last payment.
@@ -1143,12 +1183,148 @@
     save(); refresh();
   }
 
+  // ---------- jars: where each salary goes ----------
+  // Same rules as the agent (payday.js → salaryTargets / allocatePart): change both together.
+  var MINE_RE = /(^|[^Ѐ-ӿa-z])(мо[їяє]|мій)([^Ѐ-ӿa-z]|$)/i;
+  function pocketOwner(e) {
+    var n = String(e.name || '').toLowerCase();
+    if (MINE_RE.test(n)) return 'me';
+    if (/дружин|жінк/.test(n)) return 'wife';
+    return null;
+  }
+  function incomeFor(owner) {
+    var explicit = state.incomes.filter(function (i) { return i.owner === owner; })[0];
+    if (explicit) return explicit;
+    var byName = state.incomes.filter(function (i) { return (owner === 'wife' ? /дружин|жінк/i : MINE_RE).test(String(i.name || '').toLowerCase()); })[0];
+    return byName || state.incomes[owner === 'wife' ? 1 : 0] || null;
+  }
+  function salaryTargets(owner, c) {
+    var payer = state.payer || 'me';
+    var plan = function (e) { return c.plan[e.id] || 0; };
+    var out = [];
+    function add(key, label, sum, extra) { if (Math.round(sum) > 0) out.push(Object.assign({ key: key, label: label, target: Math.round(sum) }, extra || {})); }
+    var mine = state.envelopes.filter(function (e) { return (e.group === 'fixed' || e.group === 'debts') && (e.payer || payer) === owner; });
+    var inJar = mine.filter(function (e) { return e.jar; });
+    add('payments', "Обов'язкові платежі й розстрочки", inJar.reduce(function (s, e) { return s + plan(e); }, 0), { jar: inJar.length ? inJar[0].jar : null, detail: inJar.map(function (e) { return e.name; }).join(', ') });
+    mine.filter(function (e) { return !e.jar; }).forEach(function (e) { add('pay:' + e.id, e.name + (e.debt && e.debt.day ? ' (до ' + e.debt.day + ' числа)' : ''), plan(e), { card: true }); });
+    if (owner !== payer) {
+      var daily = state.envelopes.filter(function (e) { return e.group === 'daily' && !e.jar; });
+      add('daily', 'Щоденні витрати', daily.reduce(function (s, e) { return s + plan(e); }, 0), { card: true, detail: daily.map(function (e) { return e.name; }).join(', ') });
+      var byJar = {}, order = [];
+      state.envelopes.filter(function (e) { return e.group === 'daily' && e.jar; }).forEach(function (e) { if (!byJar[e.jar]) { byJar[e.jar] = []; order.push(e.jar); } byJar[e.jar].push(e); });
+      order.forEach(function (jar) { add('jar:' + jar, byJar[jar].map(function (e) { return e.name; }).join(', '), byJar[jar].reduce(function (s, e) { return s + plan(e); }, 0), { jar: jar }); });
+    }
+    state.envelopes.filter(function (e) { return e.group === 'personal'; }).forEach(function (e) {
+      var who = pocketOwner(e);
+      if (who === owner || (who === null && owner !== payer)) add('pocket:' + e.id, e.name, plan(e), { card: true });
+    });
+    return out;
+  }
+  function splitSalary(owner, amount, goalsAllocated, c) {
+    var lines = [];
+    function add(label, sum, extra) { if (Math.round(sum) > 0) lines.push(Object.assign({ label: label, amount: Math.round(sum) }, extra || {})); }
+    state.firsts.filter(function (f) { return f.type === 'percent'; }).forEach(function (f) { add(f.name || 'Відрахування', amount * num(f.value) / 100, { jar: f.jar || null, card: !f.jar }); });
+    var left = amount - lines.reduce(function (s, l) { return s + l.amount; }, 0), unfilled = 0;
+    salaryTargets(owner, c).forEach(function (t) {
+      var give = Math.max(0, Math.min(left, t.target));
+      if (give > 0) { add(t.label, give, { jar: t.jar || null, card: !!t.card, detail: t.detail }); left -= give; }
+      unfilled += t.target - give;
+    });
+    var goals = {};
+    var goalEnvs = state.envelopes.filter(function (e) { return e.group === 'goals'; });
+    goalEnvs.filter(function (e) { return e.type !== 'rest'; }).forEach(function (e) {
+      var give = Math.max(0, Math.min(left, (c.plan[e.id] || 0) - num(goalsAllocated[e.id])));
+      if (give > 0) { goals[e.id] = give; add(e.name, give, { jar: e.jar || null, goal: e.id }); left -= give; }
+    });
+    var rest = goalEnvs.filter(function (e) { return e.type === 'rest'; })[0];
+    if (rest && left > 0.5) { goals[rest.id] = left; add(rest.name, left, { jar: rest.jar || null, goal: rest.id }); left = 0; }
+    return { lines: lines, goals: goals, shortfall: Math.round(unfilled) };
+  }
+
+  function renderJars(c) {
+    var wrap = document.getElementById('jarsView');
+    if (!wrap || wrap.classList.contains('hidden')) return;
+    var people = { me: state.people[0] || 'Я', wife: state.people[1] || 'Дружина' };
+    var meInc = incomeFor('me'), wifeInc = incomeFor('wife');
+    var me = splitSalary('me', meInc ? amountOf(meInc, 0) : 0, {}, c);
+    var wife = splitSalary('wife', wifeInc ? amountOf(wifeInc, 0) : 0, me.goals, c);
+
+    var persons = document.getElementById('jarsPersons');
+    persons.innerHTML = '';
+    [['me', meInc, me], ['wife', wifeInc, wife]].forEach(function (p) {
+      if (!p[1]) return;
+      var card = el('div', 'card');
+      var head = el('div', 'card-head');
+      head.appendChild(el('span', 'card-title', '💰 ' + (p[1].name || people[p[0]])));
+      head.appendChild(el('span', 'card-total', fmt(amountOf(p[1], 0))));
+      card.appendChild(head);
+      card.appendChild(el('div', 'card-hint', 'Що зробити в день зарплати (' + people[p[0]] + '):'));
+      p[2].lines.forEach(function (l) {
+        var row = el('div', 'jar-line' + (l.jar ? '' : ' on-card'));
+        var main = el('div', 'jar-line-main');
+        main.appendChild(el('div', 'jar-line-name', (l.jar ? '🏦 ' : '💳 ') + l.label));
+        main.appendChild(el('div', 'jar-line-sub', l.jar ? 'у банку' + (l.detail ? ' · ' + l.detail : '') : 'лишити на картці' + (l.detail ? ' · ' + l.detail : '')));
+        row.appendChild(main);
+        row.appendChild(el('span', 'jar-line-amt', fmt(l.amount)));
+        if (l.jar) {
+          var a = el('a', 'jar-go', 'Поповнити ↗');
+          a.href = l.jar; a.target = '_blank'; a.rel = 'noopener noreferrer';
+          row.appendChild(a);
+        }
+        card.appendChild(row);
+      });
+      if (p[2].shortfall) card.appendChild(el('div', 'warning-box', 'Цієї зарплати не вистачає на все: бракує ' + fmt(p[2].shortfall) + '.'));
+      persons.appendChild(card);
+    });
+
+    // All jars at a glance: monthly total and who puts how much.
+    var jars = {}, order = [];
+    function put(l, who) {
+      if (!l.jar) return;
+      if (!jars[l.jar]) { jars[l.jar] = { name: l.label, me: 0, wife: 0, goal: l.goal || null }; order.push(l.jar); }
+      jars[l.jar][who] += l.amount;
+    }
+    me.lines.forEach(function (l) { put(l, 'me'); });
+    wife.lines.forEach(function (l) { put(l, 'wife'); });
+    var list = document.getElementById('jarsList');
+    list.innerHTML = '';
+    if (!order.length) list.appendChild(el('div', 'empty-hint', 'Банок ще не прив’язано. Додайте посилання на банки monobank у статтях (агент робить це сам, коли надішлете йому посилання).'));
+    var spent = spentBy();
+    order.forEach(function (jar) {
+      var j = jars[jar];
+      var box = el('div', 'env');
+      var top = el('div', 'env-top');
+      top.appendChild(el('span', 'env-name', '🏦 ' + j.name));
+      top.appendChild(el('span', 'env-left', fmt(j.me + j.wife) + '/міс'));
+      box.appendChild(top);
+      var sub = el('div', 'env-sub');
+      var who = [];
+      if (j.me) who.push(people.me + ': ' + fmt(j.me));
+      if (j.wife) who.push(people.wife + ': ' + fmt(j.wife));
+      var info = who.join(' · ');
+      if (j.goal) {
+        var e = envById(j.goal);
+        var g = goalProgress(e, c);
+        info += ' · цього місяця відкладено ' + fmt(spent[e.id] || 0) + (g.hasTarget ? ' · ' + goalText(g) : '');
+      }
+      sub.appendChild(el('span', '', info));
+      var a = el('a', 'link-btn', 'Поповнити ↗');
+      a.href = jar; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      sub.appendChild(a);
+      box.appendChild(sub);
+      list.appendChild(box);
+    });
+  }
+
   // ---------- tabs & wiring ----------
   function setTab(t) {
+    if (['plan', 'track', 'jars'].indexOf(t) < 0) t = 'plan';
     state.tab = t; save();
     document.querySelectorAll('.seg-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === t); });
     document.getElementById('planView').classList.toggle('hidden', t !== 'plan');
     document.getElementById('trackView').classList.toggle('hidden', t !== 'track');
+    document.getElementById('jarsView').classList.toggle('hidden', t !== 'jars');
+    if (t === 'jars') renderJars(calc());
     document.getElementById('leftBar').classList.toggle('hidden', t !== 'plan');
     window.scrollTo(0, 0);
   }
@@ -1233,7 +1409,7 @@
   document.addEventListener('visibilitychange', function () { if (!document.hidden && sync) pull(); });
 
   renderAll();
-  setTab(state.tab === 'track' ? 'track' : 'plan');
+  setTab(state.tab);
   renderSyncFooter();
   if (sync) pull();
 })();
