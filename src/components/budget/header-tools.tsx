@@ -57,13 +57,13 @@ export function ConnectBanner({ b, onConnect }: { b: Budget; onConnect: () => vo
   if (b.sync || hidden) return null
   const close = () => { setHidden(true); try { localStorage.setItem(BANNER_KEY, '1') } catch { /* private mode */ } }
   return (
-    <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/25 bg-primary/[0.06] p-3 text-sm sm:flex-nowrap">
+    <div className="relative mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-primary/25 bg-primary/[0.06] p-3 text-sm sm:flex-nowrap">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary"><Bot className="size-5" /></div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 pr-8 sm:pr-0">
         <div className="font-medium">Підключіть агента</div>
         <div className="text-xs text-muted-foreground">Витрати з monobank і Telegram з’являться тут самі, на всіх пристроях.</div>
       </div>
-      <Button variant="ghost" size="icon" className="size-8 text-muted-foreground sm:order-last" aria-label="Сховати" onClick={close}><X className="size-4" /></Button>
+      <Button variant="ghost" size="icon" className="absolute right-2 top-2 size-8 text-muted-foreground sm:static sm:order-last" aria-label="Сховати" onClick={close}><X className="size-4" /></Button>
       <Button size="sm" className="w-full rounded-full sm:w-auto" onClick={onConnect}>Підключити</Button>
     </div>
   )

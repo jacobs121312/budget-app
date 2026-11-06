@@ -38,3 +38,12 @@ export const groupBar: Record<GroupId, string> = {
   personal: '[&>[data-slot=progress-indicator]]:bg-primary/70',
   goals: '[&>[data-slot=progress-indicator]]:bg-[var(--chart-5)]',
 }
+
+/** Solid colours of the groups for the allocation bar (match `groupBar`). */
+export const groupFill: Record<GroupId, string> = {
+  fixed: 'var(--chart-4)',
+  debts: 'var(--chart-2)',
+  daily: 'var(--primary)',
+  personal: 'color-mix(in srgb, var(--primary) 55%, var(--card))',
+  goals: 'var(--chart-5)',
+}

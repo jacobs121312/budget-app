@@ -1,4 +1,5 @@
-import { ExternalLink, PiggyBank, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ExternalLink, PiggyBank, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -9,7 +10,7 @@ import { GROUPS, amountOf, envEmoji, fmt, goalProgress, monthLabel, num, payoffO
 import type { Envelope, GroupId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { EditRow, MiniField } from './edit-row'
-import { Columns, Step, groupAccent, groupBar } from './layout'
+import { Columns, Step, groupAccent, groupBar, groupFill } from './layout'
 
 export function goalText(g: GoalProgress) {
   const cash = g.cash ? ` (з них $${g.cash.usd} готівкою ≈ ${fmt(g.cash.uah)})` : ''
@@ -45,7 +46,7 @@ export function PlanView({ b }: { b: Budget }) {
 
   const side = (
     <>
-      <Card>
+      <Card id="plan-income" className="scroll-mt-24">
         <CardHeader>
           <CardTitle><Step n={1} />Доходи сім'ї</CardTitle>
           <CardDescription>Усі доходи йдуть у спільний бюджет.</CardDescription>
@@ -76,7 +77,7 @@ export function PlanView({ b }: { b: Budget }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="plan-firsts" className="scroll-mt-24">
         <CardHeader>
           <CardTitle><Step n={2} />Спершу</CardTitle>
           <CardDescription>Відраховується від усього доходу (десятина тощо).</CardDescription>
@@ -99,15 +100,6 @@ export function PlanView({ b }: { b: Budget }) {
             <span className="text-sm font-medium">До розподілу</span>
             <span className="text-xl font-bold tabular-nums">{fmt(c.avail)}</span>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="hidden lg:flex">
-        <CardContent className="space-y-1">
-          <div className="text-sm text-muted-foreground">{status.label}</div>
-          <div className={cn('text-3xl font-bold tabular-nums tracking-tight', status.tone)}>{fmt(u)}</div>
-          <div className="text-xs text-muted-foreground">{status.hint}</div>
-          {u > 0 && <Button size="sm" className="mt-2" onClick={toSavings}><PiggyBank /> У накопичення</Button>}
         </CardContent>
       </Card>
 
@@ -134,13 +126,53 @@ export function PlanView({ b }: { b: Budget }) {
   )
 
   const main = (
-    <div className="space-y-4 lg:columns-2 lg:gap-4 lg:space-y-0 [&>*]:mb-4 [&>*]:break-inside-avoid">
+    <div className="space-y-4">
       {GROUPS.map((g, gi) => <GroupCard key={g.id} b={b} group={g.id} step={gi + 3} />)}
     </div>
   )
 
+  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
   return (
     <>
+      {/* Overview: where the money comes from and where it goes, with links to each group. */}
+      <Card className="mb-4 lg:mb-5">
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+            {[
+              { t: 'Доходи', v: fmt(c.income), to: 'plan-income' },
+              { t: 'Спершу', v: c.firsts ? '−' + fmt(c.firsts) : '0 грн', to: 'plan-firsts' },
+              { t: 'До розподілу', v: fmt(c.avail), to: 'plan-firsts' },
+              { t: status.label, v: fmt(u), tone: status.tone, hint: status.hint },
+            ].map((k, i) => (
+              <button key={i} disabled={!k.to} onClick={() => k.to && go(k.to)} className="group/k min-w-0 text-left disabled:cursor-default">
+                <div className="truncate text-xs text-muted-foreground">{k.t}</div>
+                <div className={cn('num truncate text-xl font-semibold sm:text-2xl', k.tone, k.to && 'group-hover/k:text-primary')}>{k.v}</div>
+                {k.hint && <div className="truncate text-xs text-muted-foreground">{k.hint}</div>}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-3">
+            <div className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted">
+              {GROUPS.map((g) => (c.groups[g.id] || 0) > 0 && (
+                <button key={g.id} title={`${g.name}: ${fmt(c.groups[g.id])}`} onClick={() => go(`plan-${g.id}`)} className="h-full transition-opacity hover:opacity-80"
+                  style={{ width: `${((c.groups[g.id] || 0) / Math.max(c.avail, 1)) * 100}%`, background: groupFill[g.id] }} />
+              ))}
+            </div>
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+              {GROUPS.map((g) => (
+                <button key={g.id} onClick={() => go(`plan-${g.id}`)}
+                  className="flex shrink-0 items-center gap-2 rounded-full border bg-background/50 py-1 pl-2.5 pr-3 text-xs transition-colors hover:border-primary/50">
+                  <span className="size-2 rounded-full" style={{ background: groupFill[g.id] }} />
+                  <span className="font-medium">{g.name}</span>
+                  <span className="num text-muted-foreground">{fmt(c.groups[g.id] || 0)} · {pct(c.groups[g.id] || 0)}%</span>
+                </button>
+              ))}
+              {u > 0 && <Button size="sm" className="h-7 shrink-0 rounded-full" onClick={toSavings}><PiggyBank /> Залишок у накопичення</Button>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       <Columns side={side} main={main} />
       {/* Phones: the status sits in a bar at the bottom of the screen. */}
       <div className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-20 rounded-2xl border bg-card/90 px-4 py-2.5 shadow-lg backdrop-blur-xl md:inset-x-6 md:bottom-4 lg:hidden">
@@ -159,8 +191,16 @@ export function PlanView({ b }: { b: Budget }) {
   )
 }
 
+const COLLAPSED_KEY = 'family-budget-collapsed'
+const readCollapsed = (): string[] => { try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '[]') } catch { return [] } }
+
 function GroupCard({ b, group, step }: { b: Budget; group: GroupId; step: number }) {
   const { state, c, update } = b
+  const [open, setOpenState] = useState(() => !readCollapsed().includes(group))
+  const setOpen = (v: boolean) => {
+    setOpenState(v)
+    try { const s = new Set(readCollapsed()); if (v) s.delete(group); else s.add(group); localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...s])) } catch { /* private mode */ }
+  }
   const g = GROUPS.find((x) => x.id === group)!
   const envs = state.envelopes.filter((e) => e.group === group)
   const spent = spentBy(state)
@@ -193,23 +233,42 @@ function GroupCard({ b, group, step }: { b: Budget; group: GroupId; step: number
     }
     let freed = 0
     debtSummary = totalLeft > 0 && (
-      <div className="mt-3 space-y-1 rounded-lg bg-destructive/10 p-3 text-sm">
+      <div className="mt-3 space-y-1.5 rounded-xl bg-muted/60 p-3 text-sm">
         <div>Загальний борг: <b className="tabular-nums">{fmt(totalLeft)}</b> · щомісяця {fmt(monthly)}</div>
         {[...ends.keys()].sort().map((k) => { const x = ends.get(k)!; freed += x.freed; return (
-          <div key={k} className="font-medium text-emerald-700 dark:text-emerald-400">{monthLabel(k)} — останній платіж: {x.names.join(', ')}. Далі +{fmt(freed)}/міс</div>
+          <div key={k} className="flex gap-2 text-muted-foreground"><span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-[var(--chart-5)]" /><span>{monthLabel(k)} — останній платіж: {x.names.join(', ')}. Далі <b className="num font-semibold text-foreground">+{fmt(freed)}/міс</b></span></div>
         ) })}
       </div>
     )
   }
 
+  const share = c.avail > 0 ? Math.round(((c.groups[group] || 0) / c.avail) * 100) : 0
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className={groupAccent[group]}><Step n={step} />{g.name}</CardTitle>
-        <CardDescription>{g.hint}</CardDescription>
-        <CardAction className={cn('font-semibold tabular-nums', groupAccent[group])}>{fmt(c.groups[group] || 0)}</CardAction>
+    <Card id={`plan-${group}`} className="scroll-mt-24 gap-0">
+      <CardHeader className="grid-cols-1 pb-0">
+        <button onClick={() => setOpen(!open)} aria-expanded={open} className="-m-2 flex w-[calc(100%+1rem)] min-w-0 items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-muted/50">
+          <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: groupFill[group] }} />
+          <div className="min-w-0 flex-1">
+            <CardTitle className={cn('flex min-w-0 items-center', groupAccent[group])}><span className="hidden sm:contents"><Step n={step} /></span><span className="truncate">{g.name}</span></CardTitle>
+            <CardDescription className="mt-0.5 truncate">{open ? g.hint : `${envs.length} ${envs.length === 1 ? 'стаття' : envs.length < 5 ? 'статті' : 'статей'}`}</CardDescription>
+          </div>
+          <div className="text-right">
+            <div className="num text-lg font-semibold">{fmt(c.groups[group] || 0)}</div>
+            <div className="num text-xs text-muted-foreground">{share}% бюджету</div>
+          </div>
+          <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
+        </button>
       </CardHeader>
-      <CardContent>
+      {!open && (
+        <CardContent className="flex flex-wrap gap-1.5 pt-4">
+          {envs.map((e) => (
+            <button key={e.id} onClick={() => setOpen(true)} className="flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs">
+              <span aria-hidden>{envEmoji(e)}</span><span className="max-w-40 truncate">{e.name || 'без назви'}</span><span className="num text-muted-foreground">{fmt(c.plan[e.id] || 0)}</span>
+            </button>
+          ))}
+        </CardContent>
+      )}
+      <CardContent className={cn('pt-3', !open && 'hidden')}>
         {envs.map((e) => {
           const gp = group === 'goals' ? goalProgress(state, e, c, spent) : null
           const po = e.debt ? payoffOf(state, e, c) : null

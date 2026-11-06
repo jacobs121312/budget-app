@@ -102,7 +102,7 @@ export function EditRow(props: {
           <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 @lg:flex">{chips}</div>
           {props.children}
           {props.details && (
-            <button className="ml-auto hidden items-center gap-0.5 text-xs font-medium text-primary @lg:inline-flex" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <button className="ml-auto hidden items-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary @lg:inline-flex" aria-expanded={open} onClick={() => setOpen(!open)}>
               {open ? 'Сховати' : 'Змінити'} <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
             </button>
           )}
