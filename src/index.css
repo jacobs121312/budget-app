@@ -141,3 +141,12 @@
     @apply font-sans;
     }
 }
+/* A sideways-scrolling row fades out at its edges, so a cut item reads as "more this way". */
+@utility fade-x {
+  mask-image: linear-gradient(to right, transparent, #000 1rem, #000 calc(100% - 2.5rem), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 1rem, #000 calc(100% - 2.5rem), transparent);
+}
+@utility fade-x-none {
+  mask-image: none;
+  -webkit-mask-image: none;
+}

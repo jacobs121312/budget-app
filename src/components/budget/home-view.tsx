@@ -130,7 +130,7 @@ export function HomeView({ b, onAdd }: { b: Budget; onAdd: () => void }) {
       </section>
 
       {/* Envelope cards (like currency cards), plus a shortcut to the plan. */}
-      <section className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:col-span-12 lg:grid-cols-4 lg:gap-5">
+      <section className="fade-x -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:fade-x-none sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:col-span-12 lg:grid-cols-4 lg:gap-5">
         {top.map((e) => {
           const p = c.plan[e.id] || 0, s = spent[e.id] || 0
           const days = dailySpend(state, (x) => x.id === e.id)

@@ -159,7 +159,7 @@ export function PlanView({ b }: { b: Budget }) {
                   style={{ width: `${((c.groups[g.id] || 0) / Math.max(c.avail, 1)) * 100}%`, background: groupFill[g.id] }} />
               ))}
             </div>
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+            <div className="fade-x -mx-4 flex gap-2 overflow-x-auto px-4 pr-10 [scrollbar-width:none] sm:fade-x-none sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
               {GROUPS.map((g) => (
                 <button key={g.id} onClick={() => go(`plan-${g.id}`)}
                   className="flex shrink-0 items-center gap-2 rounded-full border bg-background/50 py-1 pl-2.5 pr-3 text-xs transition-colors hover:border-primary/50">
