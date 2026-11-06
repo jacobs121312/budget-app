@@ -79,8 +79,8 @@ export function JarsView({ b }: { b: Budget }) {
           <CardContent className="divide-y">
             {split.lines.map((l, i) => (
               <div key={i} className="flex items-center gap-3 py-2.5">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                  {l.jar ? <PiggyBank className="size-4 text-emerald-600" /> : <CreditCard className="size-4 text-muted-foreground" />}
+                <div className={l.jar ? 'flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12' : 'flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted'}>
+                  {l.jar ? <PiggyBank className="size-4 text-primary" /> : <CreditCard className="size-4 text-muted-foreground" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="line-clamp-2 text-sm font-medium leading-snug">{l.label}</div>
@@ -88,8 +88,8 @@ export function JarsView({ b }: { b: Budget }) {
                 </div>
                 <span className={l.jar ? 'whitespace-nowrap font-bold tabular-nums' : 'whitespace-nowrap font-semibold tabular-nums text-muted-foreground'}>{fmt(l.amount)}</span>
                 {l.jar && (
-                  <Button asChild size="sm" className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700" aria-label="Поповнити банку">
-                    <a href={l.jar} target="_blank" rel="noopener noreferrer"><span className="hidden sm:inline">Поповнити</span> <ExternalLink /></a>
+                  <Button asChild size="icon" className="size-8 shrink-0 rounded-full" aria-label="Поповнити банку" title="Поповнити банку">
+                    <a href={l.jar} target="_blank" rel="noopener noreferrer"><ExternalLink /></a>
                   </Button>
                 )}
               </div>

@@ -52,7 +52,7 @@ export function Footer({ b, open, setOpen }: { b: Budget; open: boolean; setOpen
   const statusText = { off: '', syncing: 'синхронізація…', ok: '✓ синхронізовано', error: 'немає зв’язку з агентом' }[b.status]
 
   return (
-    <footer className="mt-8 space-y-1 pb-40 text-center text-xs text-muted-foreground md:pb-24 lg:pb-6">
+    <footer className="mt-8 space-y-1 pb-48 text-center text-xs text-muted-foreground md:pb-28 lg:pb-8">
       <p>
         {b.sync ? 'Дані синхронізуються з агентом у Telegram.' : 'Дані зберігаються тільки в цьому браузері.'}{' '}
         <span className={b.status === 'error' ? 'text-destructive' : 'text-emerald-600'}>{statusText}</span>

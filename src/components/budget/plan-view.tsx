@@ -32,7 +32,7 @@ export function PlanView({ b }: { b: Budget }) {
   const status = u < 0
     ? { label: 'Розподілено більше, ніж є', hint: 'Зменшіть якісь статті', tone: 'text-destructive' }
     : u > 0
-      ? { label: 'Нерозподілено', hint: 'Ці гроші без призначення', tone: 'text-amber-600 dark:text-amber-400' }
+      ? { label: 'Нерозподілено', hint: 'Ці гроші без призначення', tone: 'text-primary' }
       : { label: 'Усе розподілено', hint: c.restEnv ? `Залишок → «${c.restEnv.name || 'решта'}»` : 'Кожна гривня має призначення', tone: 'text-emerald-600 dark:text-emerald-400' }
 
   const toSavings = () => update((d) => {
@@ -118,9 +118,9 @@ export function PlanView({ b }: { b: Budget }) {
         </CardHeader>
         <CardContent className="grid grid-cols-3 gap-2">
           {([
-            ['Необхідне', pct(kinds.needs), 'ціль ≤ 50%', pct(kinds.needs) > 50, 'bg-blue-500/10 text-blue-700 dark:text-blue-300'],
-            ['Бажання', pct(kinds.wants), 'ціль ≤ 30%', pct(kinds.wants) > 30, 'bg-amber-500/10 text-amber-700 dark:text-amber-300'],
-            ['Накопичення', pct(kinds.savings), 'ціль ≥ 20%', pct(kinds.savings) < 20, 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'],
+            ['Необхідне', pct(kinds.needs), 'ціль ≤ 50%', pct(kinds.needs) > 50, 'bg-muted text-muted-foreground'],
+            ['Бажання', pct(kinds.wants), 'ціль ≤ 30%', pct(kinds.wants) > 30, 'bg-muted text-muted-foreground'],
+            ['Накопичення', pct(kinds.savings), 'ціль ≥ 20%', pct(kinds.savings) < 20, 'bg-muted text-muted-foreground'],
           ] as const).map(([t, v, g, off, cls]) => (
             <div key={t} className={cn('rounded-lg p-3 text-center', cls)}>
               <div className="text-xs font-semibold">{t}</div>
@@ -143,7 +143,7 @@ export function PlanView({ b }: { b: Budget }) {
     <>
       <Columns side={side} main={main} />
       {/* Phones: the status sits in a bar at the bottom of the screen. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t bg-background/90 px-4 py-2 backdrop-blur md:bottom-0 md:pb-[calc(10px+env(safe-area-inset-bottom))] lg:hidden">
+      <div className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-20 rounded-2xl border bg-card/90 px-4 py-2.5 shadow-lg backdrop-blur-xl md:inset-x-6 md:bottom-4 lg:hidden">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
           <div>
             <div className="text-sm text-muted-foreground">{status.label}</div>
@@ -250,7 +250,7 @@ function GroupCard({ b, group, step }: { b: Budget; group: GroupId; step: number
               {gp && goalText(gp) && (
                 <div className="w-full space-y-1">
                   {gp.hasTarget && <Progress value={Math.min(100, (gp.saved / gp.amount!) * 100)} className={cn('h-1.5', groupBar.goals)} />}
-                  <div className={cn('text-xs', gp.done ? 'font-semibold text-emerald-600' : gp.hasTarget && !gp.onTrack ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>{goalText(gp)}</div>
+                  <div className={cn('text-xs', gp.done ? 'font-semibold text-emerald-600' : gp.hasTarget && !gp.onTrack ? 'font-semibold text-primary' : 'text-muted-foreground')}>{goalText(gp)}</div>
                 </div>
               )}
             </EditRow>

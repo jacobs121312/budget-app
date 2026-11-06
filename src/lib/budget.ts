@@ -331,3 +331,17 @@ export function insights(state: BudgetState, c = calc(state), today = new Date()
   if (firstEnd) out.push({ tone: 'info', text: `${envEmoji(firstEnd.e)} Наступним закриється «${firstEnd.e.name}» — останній платіж у ${monthLabel(firstEnd.po.last!).toLowerCase()}. Звільнені ${fmt(c.plan[firstEnd.e.id] || 0)}/міс варто одразу направити в накопичення.` })
   return out.slice(0, 6)
 }
+
+/** Money spent on each day of the month (index = day), for the given envelopes or all but goals. */
+export function dailySpend(state: BudgetState, only?: (e: Envelope) => boolean) {
+  const [y, m] = state.month.split('-').map(Number)
+  const dim = new Date(y, m, 0).getDate()
+  const ok = new Set(state.envelopes.filter(only || ((e) => e.group !== 'goals')).map((e) => e.id))
+  const byDay = new Array(dim + 1).fill(0)
+  for (const x of state.expenses) {
+    if (!ok.has(x.env)) continue
+    const d = new Date(x.date)
+    if (monthKey(d) === state.month) byDay[d.getDate()] += num(x.amount)
+  }
+  return byDay
+}

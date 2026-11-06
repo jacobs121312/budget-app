@@ -22,18 +22,19 @@ export function Step({ n }: { n: number }) {
   )
 }
 
+/** Group titles stay neutral; colour is kept for bars, so the page reads calm (one accent). */
 export const groupAccent: Record<GroupId, string> = {
-  fixed: 'text-blue-600 dark:text-blue-400',
-  debts: 'text-red-600 dark:text-red-400',
-  daily: 'text-violet-600 dark:text-violet-400',
-  personal: 'text-amber-600 dark:text-amber-400',
-  goals: 'text-emerald-600 dark:text-emerald-400',
+  fixed: 'text-foreground',
+  debts: 'text-foreground',
+  daily: 'text-foreground',
+  personal: 'text-foreground',
+  goals: 'text-foreground',
 }
 
 export const groupBar: Record<GroupId, string> = {
-  fixed: '[&>[data-slot=progress-indicator]]:bg-blue-500',
-  debts: '[&>[data-slot=progress-indicator]]:bg-red-500',
-  daily: '[&>[data-slot=progress-indicator]]:bg-violet-500',
-  personal: '[&>[data-slot=progress-indicator]]:bg-amber-500',
-  goals: '[&>[data-slot=progress-indicator]]:bg-emerald-500',
+  fixed: '[&>[data-slot=progress-indicator]]:bg-[var(--chart-4)]',
+  debts: '[&>[data-slot=progress-indicator]]:bg-[var(--chart-2)]',
+  daily: '[&>[data-slot=progress-indicator]]:bg-primary',
+  personal: '[&>[data-slot=progress-indicator]]:bg-primary/70',
+  goals: '[&>[data-slot=progress-indicator]]:bg-[var(--chart-5)]',
 }

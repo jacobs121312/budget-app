@@ -42,7 +42,7 @@ export function TrackView({ b }: { b: Budget }) {
   const side = (
     <>
       {isPast && (
-        <Alert className="border-amber-500/40 bg-amber-500/10">
+        <Alert className="border-primary/30 bg-primary/[0.06]">
           <AlertDescription className="space-y-2">
             <p>{monthLabel(state.month)} вже минув. Закрийте його, щоб зберегти підсумок в історії.</p>
             <Button size="sm" onClick={closeMonth}>Закрити {monthLabel(state.month)}</Button>
@@ -98,11 +98,11 @@ export function TrackView({ b }: { b: Budget }) {
                   const paid = s >= p - 0.5
                   let due: React.ReactNode = null
                   if (e.debt && canPay && !paid) {
-                    if (!e.debt.day) due = <div className="text-xs font-semibold text-amber-600">Вкажіть день платежу на вкладці «План»</div>
+                    if (!e.debt.day) due = <div className="text-xs font-semibold text-primary">Вкажіть день платежу на вкладці «План»</div>
                     else {
                       const day = Math.min(num(e.debt.day), daysInMonth)
                       const diff = isCurrent ? day - now.getDate() : isPast ? -1 : 99
-                      due = <div className={cn('text-xs', diff < 0 ? 'font-semibold text-destructive' : diff <= 3 ? 'font-semibold text-amber-600' : 'text-muted-foreground')}>
+                      due = <div className={cn('text-xs', diff < 0 ? 'font-semibold text-destructive' : diff <= 3 ? 'font-semibold text-primary' : 'text-muted-foreground')}>
                         {diff < 0 ? `Платіж ${day} числа — перевірте, чи сплачено` : diff === 0 ? 'Платіж сьогодні!' : diff <= 3 ? `Платіж ${day} числа — через ${diff} дн.` : `Платіж ${day} числа`}
                       </div>
                     }
