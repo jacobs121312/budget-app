@@ -302,7 +302,9 @@ function GroupCard({ b, group, step }: { b: Budget; group: GroupId; step: number
                     const n = Math.round(num(v)); if (n > 0) x.goal = { ...x.goal, amount: n }; else if (x.goal) { delete x.goal.amount; if (!x.goal.date) delete x.goal }
                   })} />
                   <MiniField label="до" type="month" width="@lg:w-36" value={e.goal?.date || ''} onChange={(v) => edit(e.id, (x) => { x.goal = { ...x.goal, date: /^\d{4}-\d{2}$/.test(v) ? v : null } })} />
-                  <MiniField label="вже є, грн" placeholder="0" value={Math.round(num(e.balance) + (spent[e.id] || 0)) || ''} onChange={(v) => edit(e.id, (x) => { x.balance = Math.max(0, Math.round(num(v)) - Math.round(spent[e.id] || 0)) })} />
+                  {gp?.fromJar
+                    ? <span className="col-span-2 text-xs text-muted-foreground">вже є: <b className="num font-semibold text-foreground">{fmt(gp.saved - (gp.cash?.uah || 0))}</b> — з банки «{gp.fromJar}», оновлюється само</span>
+                    : <MiniField label="вже є, грн" placeholder="0" value={Math.round(num(e.balance) + (spent[e.id] || 0)) || ''} onChange={(v) => edit(e.id, (x) => { x.balance = Math.max(0, Math.round(num(v)) - Math.round(spent[e.id] || 0)) })} />}
                   <MiniField label="готівкою $" width="@lg:w-20" placeholder="0" value={e.cashUsd || ''} onChange={(v) => edit(e.id, (x) => { const n = Math.round(num(v) * 100) / 100; if (n > 0) x.cashUsd = n; else delete x.cashUsd })} />
                 </>
               ) : undefined}>

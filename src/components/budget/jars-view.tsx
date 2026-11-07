@@ -2,7 +2,7 @@ import { ChevronDown, CreditCard, ExternalLink, PiggyBank } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Budget } from '@/hooks/use-budget'
-import { amountOf, envEmoji, fmt, goalProgress, incomeFor, spentBy, splitSalary, type SplitLine } from '@/lib/budget'
+import { amountOf, envEmoji, fmt, goalProgress, jarUah, num, incomeFor, spentBy, splitSalary, type SplitLine } from '@/lib/budget'
 import type { Owner } from '@/lib/types'
 import { Progress } from '@/components/ui/progress'
 import { goalText } from './plan-view'
@@ -25,6 +25,8 @@ export function JarsView({ b }: { b: Budget }) {
   me.lines.forEach((l) => put(l, 'me'))
   wife.lines.forEach((l) => put(l, 'wife'))
   const spent = spentBy(state)
+  const known = (state.jars || []).filter((j) => j.balance != null)
+  const jarsTotal = known.length ? Math.round(known.reduce((sum, j) => sum + jarUah(state, j), 0)) : null
 
   const plans = ([['me', meInc, me], ['wife', wifeInc, wife]] as const).filter(([, inc]) => inc).map(([who, inc, split]) => {
     const toJars = split.lines.filter((l) => l.jar).reduce((sum, l) => sum + l.amount, 0)
@@ -125,14 +127,19 @@ export function JarsView({ b }: { b: Budget }) {
       <section className="space-y-3">
         <div className="flex items-baseline justify-between">
           <h3 className="font-semibold">Усі банки</h3>
-          <span className="text-xs text-muted-foreground">скільки на місяць і хто кладе</span>
+          <span className="text-xs text-muted-foreground">
+            {jarsTotal !== null ? <>зараз у банках <b className="num font-semibold text-foreground">{fmt(jarsTotal)}</b></> : 'скільки на місяць і хто кладе'}
+          </span>
         </div>
         {!jars.size && <p className="text-sm text-muted-foreground">Банок ще не прив’язано. Надішліть агенту посилання на банки monobank.</p>}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 lg:gap-4">
           {[...jars.entries()].map(([url, j]) => {
             const env = j.goal ? state.envelopes.find((e) => e.id === j.goal) : null
             const g = env ? goalProgress(state, env, c, spent) : null
-            const pct = g?.hasTarget ? Math.min(100, (g.saved / g.amount!) * 100) : null
+            const key = url.replace(/\/+$/, '').split('/').pop() || '#'
+            const live = (state.jars || []).find((x) => x.balance != null && x.sendId && String(x.sendId).split('/').pop() === key)
+            const jarGoal = live?.goal ? Math.min(100, (num(live.balance) / live.goal) * 100) : null
+            const pct = g?.hasTarget ? Math.min(100, (g.saved / g.amount!) * 100) : jarGoal
             return (
               <Card key={url} className="gap-3 py-4">
                 <CardContent className="space-y-3 px-4">
@@ -144,10 +151,19 @@ export function JarsView({ b }: { b: Budget }) {
                     </div>
                     <span className="num whitespace-nowrap text-sm font-semibold">{fmt(j.me + j.wife)}<span className="font-normal text-muted-foreground">/міс</span></span>
                   </div>
+                  {live && (
+                    <div className="flex items-baseline justify-between rounded-xl bg-muted/60 px-3 py-2">
+                      <span className="text-xs text-muted-foreground">зараз у банці</span>
+                      <span className="num text-lg font-semibold">
+                        {live.currency === 'USD' ? `$${Math.round(num(live.balance))}` : fmt(num(live.balance))}
+                        {live.goal ? <span className="text-xs font-normal text-muted-foreground"> з {live.currency === 'USD' ? `$${Math.round(live.goal)}` : fmt(live.goal)}</span> : null}
+                      </span>
+                    </div>
+                  )}
                   {pct !== null && (
                     <div className="space-y-1">
                       <Progress value={pct} className="h-1.5 [&>[data-slot=progress-indicator]]:bg-[var(--chart-5)]" />
-                      <div className="truncate text-xs text-muted-foreground">{g && goalText(g)}</div>
+                      {g?.hasTarget && <div className="truncate text-xs text-muted-foreground">{goalText(g)}</div>}
                     </div>
                   )}
                   <Button asChild variant="secondary" size="sm" className="w-full rounded-full">

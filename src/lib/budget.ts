@@ -1,7 +1,7 @@
 // Budget rules. They mirror the agent (budget-agent/src/budget.js and payday.js):
 // change both together so the calculator and the bot always show the same numbers.
 
-import type { BudgetState, Envelope, First, GroupId, HistoryEntry, Income, Owner } from './types'
+import type { BudgetState, Envelope, First, GroupId, HistoryEntry, Income, Jar, Owner } from './types'
 
 export const GROUPS: { id: GroupId; name: string; kind: 'needs' | 'wants' | 'savings'; hint: string }[] = [
   { id: 'fixed', name: "Обов'язкові платежі", kind: 'needs', hint: 'Однакова сума щомісяця: оренда, комуналка, зв’язок.' },
@@ -105,6 +105,8 @@ export interface GoalProgress {
   saved: number
   plan: number
   cash: { usd: number; uah: number; inJar: number } | null
+  /** Title of the monobank jar the saved money is read from. */
+  fromJar?: string | null
   amount?: number
   left?: number
   date?: string | null
@@ -115,21 +117,43 @@ export interface GoalProgress {
   done?: boolean
 }
 
+const sendKey = (s?: string | null) => String(s || '').split('/').filter(Boolean).pop() || ''
+
+/** The monobank jar a goal saves into: same link as the envelope's jar, or the same name. Mirrors the agent. */
+export function jarOfEnvelope(state: BudgetState, e: Envelope): Jar | null {
+  const jars = (state.jars || []).filter((j) => j.balance != null)
+  if (!jars.length) return null
+  const key = sendKey(e.jar)
+  if (key) {
+    const byLink = jars.find((j) => j.sendId && sendKey(j.sendId) === key)
+    if (byLink) return byLink
+  }
+  const name = String(e.name || '').toLowerCase().split(/[\s/]+/)[0]
+  return name.length >= 4 ? jars.find((j) => String(j.title).toLowerCase().startsWith(name)) || null : null
+}
+
+/** Jar balance in hryvnias (a dollar jar at today's rate). */
+export const jarUah = (state: BudgetState, j: Jar) => (j.currency === 'USD' ? round2(num(j.balance) * num(state.rate)) : num(j.balance))
+
 export function goalProgress(state: BudgetState, e: Envelope, c = calc(state), spent = spentBy(state)): GoalProgress {
   const cashUah = Math.round(num(e.cashUsd) * num(state.rate))
-  const inJar = Math.round(num(e.balance) + (spent[e.id] || 0))
+  // A linked monobank jar knows exactly what is saved; otherwise: balance + this month's top-ups.
+  const jar = e.group === 'goals' ? jarOfEnvelope(state, e) : null
+  const inJar = jar ? Math.round(jarUah(state, jar)) : Math.round(num(e.balance) + (spent[e.id] || 0))
+  const startBalance = jar ? inJar - (spent[e.id] || 0) : num(e.balance)
+  const fromJar = jar ? jar.title : null
   const saved = inJar + cashUah
   const plan = Math.round(c.plan[e.id] || 0)
   const cash = e.cashUsd ? { usd: num(e.cashUsd), uah: cashUah, inJar } : null
-  if (!e.goal || !(num(e.goal.amount) > 0)) return { hasTarget: false, saved, plan, cash }
+  if (!e.goal || !(num(e.goal.amount) > 0)) return { hasTarget: false, saved, plan, cash, fromJar }
   const amount = Math.round(num(e.goal.amount))
   const left = Math.max(0, amount - saved)
   const monthsLeft = e.goal.date ? Math.max(0, monthsBetween(state.month, e.goal.date) + 1) : null
-  const neededPerMonth = monthsLeft ? Math.max(0, Math.ceil((amount - num(e.balance) - cashUah) / monthsLeft)) : null
+  const neededPerMonth = monthsLeft ? Math.max(0, Math.ceil((amount - startBalance - cashUah) / monthsLeft)) : null
   const afterThis = left - Math.max(0, plan - (spent[e.id] || 0))
   const byPlan = left <= 0 || afterThis <= 0 ? state.month : plan > 0 ? addMonths(state.month, Math.ceil(afterThis / plan)) : null
   const onTrack = left <= 0 || (e.goal.date ? byPlan !== null && byPlan <= e.goal.date : true)
-  return { hasTarget: true, amount, saved, left, plan, date: e.goal.date || null, monthsLeft, neededPerMonth, byPlan, onTrack, done: left <= 0, cash }
+  return { hasTarget: true, amount, saved, left, plan, date: e.goal.date || null, monthsLeft, neededPerMonth, byPlan, onTrack, done: left <= 0, cash, fromJar }
 }
 
 /** Close the month: archive totals, pay down debts, carry savings into goal balances. */

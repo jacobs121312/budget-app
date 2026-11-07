@@ -36,6 +36,18 @@ export interface Expense {
   receipt?: string
 }
 
+/** A monobank jar as the agent last saw it (balance in its own currency). */
+export interface Jar {
+  id: string
+  owner?: 'me' | 'wife'
+  title: string
+  sendId?: string | null
+  currency: 'UAH' | 'USD'
+  balance: number | null
+  goal?: number | null
+  ts?: number | null
+}
+
 export interface HistoryEntry {
   month: string; income: number; plan: number; spent: number; saved: number
   over: { name: string; amount: number }[]
@@ -54,6 +66,8 @@ export interface BudgetState {
   month: string
   expenses: Expense[]
   history: HistoryEntry[]
+  /** Filled by the agent from monobank; the calculator only reads it. */
+  jars?: Jar[]
   payer?: Owner
   memory?: unknown
   debtsSeeded?: boolean
